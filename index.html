@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visme Combined Marketing Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f8f9fa; --surface: #ffffff; --border: #e2e8f0;
+    --text: #1a202c; --muted: #718096; --accent: #3b82f6;
+    --green: #22c55e; --red: #ef4444; --orange: #f97316;
+    --sidebar-w: 220px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: var(--bg); color: var(--text); font-size: 14px; }
+  /* Sidebar */
+  #sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-w);
+    background: var(--surface); border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 20px 0; z-index: 100;
+  }
+  #sidebar h2 { padding: 0 16px 16px; font-size: 13px; color: var(--muted);
+                text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); }
+  #sidebar nav a {
+    display: block; padding: 8px 16px; color: var(--text); text-decoration: none;
+    font-size: 13px; border-left: 3px solid transparent; transition: all .15s;
+  }
+  #sidebar nav a:hover, #sidebar nav a.active {
+    background: #eff6ff; color: var(--accent); border-left-color: var(--accent);
+  }
+  /* Main */
+  #main { margin-left: var(--sidebar-w); padding: 24px; }
+  .header { display: flex; justify-content: space-between; align-items: center;
+             margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header-meta { font-size: 12px; color: var(--muted); }
+  /* Controls */
+  .controls { background: var(--surface); border: 1px solid var(--border);
+               border-radius: 10px; padding: 16px; margin-bottom: 24px;
+               display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .controls label { font-size: 13px; font-weight: 600; }
+  .week-btns { display: flex; gap: 6px; }
+  .week-btn {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    cursor: pointer; font-size: 13px; background: var(--bg);
+    transition: all .15s;
+  }
+  .week-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  /* Card */
+  .card { background: var(--surface); border: 1px solid var(--border);
+           border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+  .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .card .subtitle { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 280px; }
+  /* Table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f1f5f9; padding: 8px 10px; text-align: left;
+        font-weight: 600; border-bottom: 2px solid var(--border);
+        white-space: nowrap; cursor: pointer; user-select: none; }
+  th:hover { background: #e2e8f0; }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: #f8fafc; }
+  .green { color: var(--green); font-weight: 600; }
+  .red   { color: var(--red);   font-weight: 600; }
+  .up   { background: #f0fdf4; }
+  .down { background: #fff5f5; }
+  .cell-green { background: #dcfce7; color: #15803d; font-weight: 600; border-radius: 4px; padding: 2px 6px; }
+  .cell-red   { background: #fee2e2; color: #b91c1c; font-weight: 600; border-radius: 4px; padding: 2px 6px; }
+  .badge-green { background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  .badge-gray  { background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  .badge-blue  { background: #dbeafe; color: #1d4ed8; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  /* Search / filter */
+  .table-controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .search-box {
+    padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; flex: 1; min-width: 200px;
+  }
+  .filter-btn {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+    cursor: pointer; font-size: 12px; background: var(--bg);
+  }
+  .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  /* Split layout */
+  .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media(max-width:900px) { .cols-2 { grid-template-columns: 1fr; } }
+  /* Summary stats row */
+  .stat-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .stat-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;
+               padding: 10px 16px; min-width: 120px; }
+  .stat-box .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .stat-box .value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .stat-box .delta { font-size: 11px; margin-top: 2px; }
+  /* Overlap highlight */
+  .overlap { background: #fef9c3 !important; }
+  /* Section anchor padding */
+  section { scroll-margin-top: 20px; }
+  /* YTD summary */
+  .ytd-row td { font-weight: 700; background: #f1f5f9 !important; }
+  /* Note */
+  .note { font-size: 11px; color: var(--muted); margin-top: 10px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h2>Visme Dashboard</h2>
+  <nav>
+    <a href="#s1">1. Weekly Scorecard</a>
+    <a href="#s2">2. Acquisition Funnel</a>
+    <a href="#s3">3. Paid vs Organic Mix</a>
+    <a href="#s4">4. Organic vs Paid Spend</a>
+    <a href="#s5">5. Blended CPA</a>
+    <a href="#s6">6. Budget vs Actual</a>
+    <a href="#s7">7. Top Queries</a>
+    <a href="#s8">8. Landing Page Cross-Ref</a>
+    <a href="#s9">9. Campaigns</a>
+    <a href="#s10">10. Keywords</a>
+  </nav>
+</div>
+
+<div id="main">
+  <div class="header">
+    <h1>Visme Marketing Intelligence Dashboard</h1>
+    <div class="header-meta" id="data-as-of"></div>
+  </div>
+
+  <div class="controls">
+    <label>Time window:</label>
+    <div class="week-btns">
+      <button class="week-btn" data-weeks="8">8 weeks</button>
+      <button class="week-btn active" data-weeks="13">13 weeks</button>
+      <button class="week-btn" data-weeks="26">26 weeks</button>
+      <button class="week-btn" data-weeks="52">52 weeks</button>
+    </div>
+  </div>
+
+  <!-- S1 -->
+  <section id="s1">
+  <div class="card">
+    <h2>1. Weekly Marketing Scorecard</h2>
+    <div class="subtitle">All key metrics in one view · Green = improving WoW · Red = declining</div>
+    <div class="tbl-wrap">
+      <table id="scorecard-tbl">
+        <thead><tr>
+          <th>Week Ending</th>
+          <th>Organic Clicks</th>
+          <th>Paid Clicks</th>
+          <th>Total Sessions</th>
+          <th>Paid Spend</th>
+          <th>Free Signups</th>
+          <th>Purchases</th>
+          <th>Blended CPA</th>
+        </tr></thead>
+        <tbody id="scorecard-body"></tbody>
+      </table>
+    </div>
+  </div>
+  </section>
+
+  <!-- S2 -->
+  <section id="s2">
+  <div class="card">
+    <h2>2. Full Acquisition Funnel</h2>
+    <div class="subtitle">Weekly journey: Organic Clicks → Paid Clicks → Sessions → Signups → Purchases</div>
+    <div class="chart-wrap"><canvas id="funnelChart"></canvas></div>
+    <div id="funnel-rates" class="stat-row" style="margin-top:16px"></div>
+  </div>
+  </section>
+
+  <!-- S3 -->
+  <section id="s3">
+  <div class="card">
+    <h2>3. Paid vs Organic Traffic Mix</h2>
+    <div class="subtitle">Weekly stacked area — Paid (Google Ads clicks), Organic (GSC clicks), Other (remaining sessions)</div>
+    <div id="mix-stats" class="stat-row"></div>
+    <div class="chart-wrap"><canvas id="mixChart"></canvas></div>
+  </div>
+  </section>
+
+  <!-- S4 -->
+  <section id="s4">
+  <div class="card">
+    <h2>4. Organic Search vs Paid Spend</h2>
+    <div class="subtitle">Left: GSC organic clicks (line) · Right: Google Ads weekly spend (bars)</div>
+    <div class="chart-wrap"><canvas id="orgVsPaidChart"></canvas></div>
+  </div>
+  </section>
+
+  <!-- S5 -->
+  <section id="s5">
+  <div class="card">
+    <h2>5. Blended CPA Trend</h2>
+    <div class="subtitle">Google Ads spend ÷ GA4 purchase events · With YoY overlay</div>
+    <div class="chart-wrap"><canvas id="cpaChart"></canvas></div>
+    <p class="note">Blended CPA uses GA4 purchase events as ground truth rather than Google Ads conversion tracking to avoid attribution gaps.</p>
+  </div>
+  </section>
+
+  <!-- S6 -->
+  <section id="s6">
+  <div class="card">
+    <h2>6. Budget vs Actual (2026, Monthly)</h2>
+    <div class="subtitle">GA4 new users vs budget targets · Green = at or above budget · Red = below</div>
+    <div class="cols-2">
+      <div>
+        <h3 style="font-size:14px;margin-bottom:12px;">PPC Traffic (Paid Search new users)</h3>
+        <div class="tbl-wrap">
+          <table id="budget-ppc-tbl">
+            <thead><tr>
+              <th>Month</th><th>Budget</th><th>Actual</th><th>Variance</th><th>Variance %</th>
+            </tr></thead>
+            <tbody id="budget-ppc-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:14px;margin-bottom:12px;">Non-PPC Traffic (All other new users)</h3>
+        <div class="tbl-wrap">
+          <table id="budget-nonppc-tbl">
+            <thead><tr>
+              <th>Month</th><th>Budget</th><th>Actual</th><th>Variance</th><th>Variance %</th>
+            </tr></thead>
+            <tbody id="budget-nonppc-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  </section>
+
+  <!-- S7 -->
+  <section id="s7">
+  <div class="card">
+    <h2>7. Top Queries with Landing Pages</h2>
+    <div class="subtitle">Top 100 organic queries (GSC) · Last 90 days</div>
+    <div class="table-controls">
+      <input type="text" class="search-box" id="query-search" placeholder="Search queries...">
+      <button class="filter-btn active" data-brand="all">All</button>
+      <button class="filter-btn" data-brand="branded">Branded</button>
+      <button class="filter-btn" data-brand="nonbranded">Non-branded</button>
+    </div>
+    <div class="tbl-wrap">
+      <table id="queries-tbl">
+        <thead><tr>
+          <th>Query</th><th>Top Landing Page</th><th>Clicks</th><th>Impressions</th><th>CTR</th><th>Avg Position</th>
+        </tr></thead>
+        <tbody id="queries-body"></tbody>
+      </table>
+    </div>
+  </div>
+  </section>
+
+  <!-- S8 -->
+  <section id="s8">
+  <div class="card">
+    <h2>8. Landing Page Cross-Reference</h2>
+    <div class="subtitle">Yellow = same URL appears in both paid and organic · Excludes /v2/ pages</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;overflow-x:auto;">
+      <div>
+        <h3 style="font-size:13px;margin-bottom:8px;color:var(--muted);">Top Organic Pages (GSC)</h3>
+        <div class="tbl-wrap">
+          <table id="lp-organic-tbl">
+            <thead><tr><th>Page</th><th>Clicks</th></tr></thead>
+            <tbody id="lp-organic-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:13px;margin-bottom:8px;color:var(--muted);">Top Paid Pages (Google Ads)</h3>
+        <div class="tbl-wrap">
+          <table id="lp-paid-tbl">
+            <thead><tr><th>Page</th><th>Clicks</th></tr></thead>
+            <tbody id="lp-paid-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:13px;margin-bottom:8px;color:var(--muted);">Top GA4 Landing Pages</h3>
+        <div class="tbl-wrap">
+          <table id="lp-ga4-tbl">
+            <thead><tr><th>Page</th><th>Sessions</th></tr></thead>
+            <tbody id="lp-ga4-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  </section>
+
+  <!-- S9 -->
+  <section id="s9">
+  <div class="card">
+    <h2>9. Campaign Performance</h2>
+    <div class="subtitle">All Google Ads campaigns · Sortable · Click column headers</div>
+    <div class="tbl-wrap">
+      <table id="campaigns-tbl">
+        <thead><tr>
+          <th>Campaign</th><th>Status</th><th>Type</th><th>Spend</th>
+          <th>Clicks</th><th>Impressions</th><th>CTR</th>
+          <th>Conversions</th><th>CPA</th><th>Conv. Rate</th>
+        </tr></thead>
+        <tbody id="campaigns-body"></tbody>
+      </table>
+    </div>
+  </div>
+  </section>
+
+  <!-- S10 -->
+  <section id="s10">
+  <div class="card">
+    <h2>10. Keyword Performance</h2>
+    <div class="subtitle">Top 50 keywords by spend</div>
+    <div class="table-controls">
+      <input type="text" class="search-box" id="kw-search" placeholder="Search keywords...">
+    </div>
+    <div class="tbl-wrap">
+      <table id="keywords-tbl">
+        <thead><tr>
+          <th>Keyword</th><th>Match Type</th><th>Campaign</th>
+          <th>Spend</th><th>Clicks</th><th>CTR</th>
+          <th>Conversions</th><th>CPA</th>
+        </tr></thead>
+        <tbody id="keywords-body"></tbody>
+      </table>
+    </div>
+  </div>
+  </section>
+</div><!-- /main -->
+
+<script>
+const RAW = {"weeklyRows": [{"week": "2024-04-07", "sessions": 1037129, "newUsers": 645359, "organicClicks": 0, "paidClicks": 3880, "paidSpend": 3854.66, "signups": 51735, "purchases": 0, "blendedCPA": null, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4433, "organicNewUsers": 517503}, {"week": "2024-04-14", "sessions": 1032784, "newUsers": 660298, "organicClicks": 0, "paidClicks": 4250, "paidSpend": 4492.64, "signups": 54378, "purchases": 309, "blendedCPA": 14.54, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 3889, "organicNewUsers": 524423}, {"week": "2024-04-21", "sessions": 1039237, "newUsers": 737599, "organicClicks": 0, "paidClicks": 4732, "paidSpend": 4780.7, "signups": 57504, "purchases": 1013, "blendedCPA": 4.72, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4275, "organicNewUsers": 574942}, {"week": "2024-04-28", "sessions": 1045357, "newUsers": 735555, "organicClicks": 0, "paidClicks": 4489, "paidSpend": 4424.98, "signups": 50295, "purchases": 873, "blendedCPA": 5.07, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 7002, "organicNewUsers": 573932}, {"week": "2024-05-05", "sessions": 992119, "newUsers": 693658, "organicClicks": 0, "paidClicks": 3857, "paidSpend": 3930.86, "signups": 44202, "purchases": 690, "blendedCPA": 5.7, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4182, "organicNewUsers": 538877}, {"week": "2024-05-12", "sessions": 969896, "newUsers": 690074, "organicClicks": 0, "paidClicks": 3120, "paidSpend": 3415.9, "signups": 48347, "purchases": 709, "blendedCPA": 4.82, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 2833, "organicNewUsers": 541041}, {"week": "2024-05-19", "sessions": 1030414, "newUsers": 723324, "organicClicks": 0, "paidClicks": 3316, "paidSpend": 3396.68, "signups": 50644, "purchases": 817, "blendedCPA": 4.16, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4764, "organicNewUsers": 555425}, {"week": "2024-05-26", "sessions": 955985, "newUsers": 685024, "organicClicks": 0, "paidClicks": 3063, "paidSpend": 3210.68, "signups": 47538, "purchases": 1413, "blendedCPA": 2.27, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4996, "organicNewUsers": 531709}, {"week": "2024-06-02", "sessions": 911560, "newUsers": 644807, "organicClicks": 0, "paidClicks": 2944, "paidSpend": 4094.71, "signups": 46357, "purchases": 1278, "blendedCPA": 3.2, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4044, "organicNewUsers": 493321}, {"week": "2024-06-09", "sessions": 884898, "newUsers": 625273, "organicClicks": 0, "paidClicks": 3437, "paidSpend": 5384.92, "signups": 44620, "purchases": 1191, "blendedCPA": 4.52, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 6188, "organicNewUsers": 480541}, {"week": "2024-06-16", "sessions": 854098, "newUsers": 609264, "organicClicks": 0, "paidClicks": 3228, "paidSpend": 4753.94, "signups": 41809, "purchases": 1133, "blendedCPA": 4.2, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 5702, "organicNewUsers": 464116}, {"week": "2024-06-23", "sessions": 804412, "newUsers": 572771, "organicClicks": 0, "paidClicks": 3585, "paidSpend": 6551.76, "signups": 38570, "purchases": 1079, "blendedCPA": 6.07, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 5008, "organicNewUsers": 440333}, {"week": "2024-06-30", "sessions": 782905, "newUsers": 560919, "organicClicks": 0, "paidClicks": 3671, "paidSpend": 5822.93, "signups": 37709, "purchases": 1002, "blendedCPA": 5.81, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4821, "organicNewUsers": 429177}, {"week": "2024-07-07", "sessions": 737882, "newUsers": 527567, "organicClicks": 0, "paidClicks": 3414, "paidSpend": 5742.14, "signups": 35716, "purchases": 747, "blendedCPA": 7.69, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 5076, "organicNewUsers": 403856}, {"week": "2024-07-14", "sessions": 746842, "newUsers": 530263, "organicClicks": 0, "paidClicks": 3802, "paidSpend": 5932.24, "signups": 37412, "purchases": 803, "blendedCPA": 7.39, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 5734, "organicNewUsers": 407898}, {"week": "2024-07-21", "sessions": 735526, "newUsers": 528039, "organicClicks": 0, "paidClicks": 3946, "paidSpend": 5836.36, "signups": 39384, "purchases": 818, "blendedCPA": 7.13, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 5318, "organicNewUsers": 412601}, {"week": "2024-07-28", "sessions": 769834, "newUsers": 547330, "organicClicks": 0, "paidClicks": 3867, "paidSpend": 5750.97, "signups": 42263, "purchases": 770, "blendedCPA": 7.47, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 5993, "organicNewUsers": 424813}, {"week": "2024-08-04", "sessions": 776688, "newUsers": 559405, "organicClicks": 0, "paidClicks": 2900, "paidSpend": 4993.78, "signups": 38722, "purchases": 710, "blendedCPA": 7.03, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4725, "organicNewUsers": 429865}, {"week": "2024-08-11", "sessions": 769842, "newUsers": 559216, "organicClicks": 0, "paidClicks": 1944, "paidSpend": 4500.04, "signups": 34880, "purchases": 814, "blendedCPA": 5.53, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 5840, "organicNewUsers": 434753}, {"week": "2024-08-18", "sessions": 725820, "newUsers": 514310, "organicClicks": 0, "paidClicks": 3178, "paidSpend": 5431.84, "signups": 39655, "purchases": 787, "blendedCPA": 6.9, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 3963, "organicNewUsers": 397910}, {"week": "2024-08-25", "sessions": 626489, "newUsers": 428279, "organicClicks": 0, "paidClicks": 3128, "paidSpend": 7138.6, "signups": 40596, "purchases": 787, "blendedCPA": 9.07, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 1937, "organicNewUsers": 327490}, {"week": "2024-09-01", "sessions": 639387, "newUsers": 443022, "organicClicks": 0, "paidClicks": 3154, "paidSpend": 5705.55, "signups": 39697, "purchases": 859, "blendedCPA": 6.64, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 2074, "organicNewUsers": 334938}, {"week": "2024-09-08", "sessions": 677668, "newUsers": 474479, "organicClicks": 0, "paidClicks": 2574, "paidSpend": 5117.41, "signups": 44120, "purchases": 938, "blendedCPA": 5.46, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 2381, "organicNewUsers": 360128}, {"week": "2024-09-15", "sessions": 720629, "newUsers": 501284, "organicClicks": 0, "paidClicks": 2256, "paidSpend": 4656.48, "signups": 47353, "purchases": 951, "blendedCPA": 4.9, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 1733, "organicNewUsers": 370848}, {"week": "2024-09-22", "sessions": 722095, "newUsers": 500709, "organicClicks": 0, "paidClicks": 2438, "paidSpend": 5008.19, "signups": 47715, "purchases": 985, "blendedCPA": 5.08, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 1252, "organicNewUsers": 368094}, {"week": "2024-09-29", "sessions": 735321, "newUsers": 513526, "organicClicks": 0, "paidClicks": 2775, "paidSpend": 5905.74, "signups": 50288, "purchases": 1081, "blendedCPA": 5.46, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 2056, "organicNewUsers": 387425}, {"week": "2024-10-06", "sessions": 719649, "newUsers": 508500, "organicClicks": 0, "paidClicks": 2527, "paidSpend": 5448.63, "signups": 50561, "purchases": 1103, "blendedCPA": 4.94, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4761, "organicNewUsers": 378637}, {"week": "2024-10-13", "sessions": 716853, "newUsers": 494089, "organicClicks": 0, "paidClicks": 2770, "paidSpend": 5368.61, "signups": 51422, "purchases": 972, "blendedCPA": 5.52, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 4827, "organicNewUsers": 363702}, {"week": "2024-10-20", "sessions": 730449, "newUsers": 512077, "organicClicks": 0, "paidClicks": 2932, "paidSpend": 5355.39, "signups": 53377, "purchases": 999, "blendedCPA": 5.36, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 5277, "organicNewUsers": 375741}, {"week": "2024-10-27", "sessions": 713535, "newUsers": 504851, "organicClicks": 0, "paidClicks": 2829, "paidSpend": 5891.29, "signups": 52188, "purchases": 914, "blendedCPA": 6.45, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 7617, "organicNewUsers": 370238}, {"week": "2024-11-03", "sessions": 677040, "newUsers": 466384, "organicClicks": 0, "paidClicks": 2221, "paidSpend": 5303.93, "signups": 54227, "purchases": 954, "blendedCPA": 5.56, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 1558, "organicNewUsers": 340189}, {"week": "2024-11-10", "sessions": 729853, "newUsers": 502031, "organicClicks": 0, "paidClicks": 2663, "paidSpend": 5675.25, "signups": 53304, "purchases": 1017, "blendedCPA": 5.58, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 7443, "organicNewUsers": 360585}, {"week": "2024-11-17", "sessions": 740596, "newUsers": 513010, "organicClicks": 40365, "paidClicks": 2325, "paidSpend": 4947.03, "signups": 59087, "purchases": 1056, "blendedCPA": 4.68, "impressions": 941811, "ctr": 0.0429, "position": 19.8, "paidNewUsers": 5508, "organicNewUsers": 370057}, {"week": "2024-11-24", "sessions": 721169, "newUsers": 489791, "organicClicks": 299922, "paidClicks": 1713, "paidSpend": 4328.77, "signups": 74731, "purchases": 1174, "blendedCPA": 3.69, "impressions": 7024490, "ctr": 0.0427, "position": 19.5, "paidNewUsers": 1259, "organicNewUsers": 351871}, {"week": "2024-12-01", "sessions": 657139, "newUsers": 445431, "organicClicks": 271346, "paidClicks": 1386, "paidSpend": 3673.57, "signups": 63803, "purchases": 1123, "blendedCPA": 3.27, "impressions": 6166134, "ctr": 0.044, "position": 19.1, "paidNewUsers": 1809, "organicNewUsers": 319483}, {"week": "2024-12-08", "sessions": 639331, "newUsers": 437025, "organicClicks": 266876, "paidClicks": 1828, "paidSpend": 4550.98, "signups": 61066, "purchases": 1040, "blendedCPA": 4.38, "impressions": 6438144, "ctr": 0.0415, "position": 20.2, "paidNewUsers": 1601, "organicNewUsers": 314745}, {"week": "2024-12-15", "sessions": 611200, "newUsers": 413709, "organicClicks": 249842, "paidClicks": 2238, "paidSpend": 5549.6, "signups": 55197, "purchases": 862, "blendedCPA": 6.44, "impressions": 6113369, "ctr": 0.0409, "position": 20.5, "paidNewUsers": 3644, "organicNewUsers": 291576}, {"week": "2024-12-22", "sessions": 530552, "newUsers": 360782, "organicClicks": 208137, "paidClicks": 1608, "paidSpend": 4799.07, "signups": 46085, "purchases": 667, "blendedCPA": 7.2, "impressions": 5293219, "ctr": 0.0393, "position": 22.4, "paidNewUsers": 2674, "organicNewUsers": 246958}, {"week": "2024-12-29", "sessions": 385321, "newUsers": 280514, "organicClicks": 155810, "paidClicks": 1068, "paidSpend": 3872.28, "signups": 31181, "purchases": 352, "blendedCPA": 11.0, "impressions": 4499647, "ctr": 0.0346, "position": 25.1, "paidNewUsers": 6553, "organicNewUsers": 193535}, {"week": "2025-01-05", "sessions": 369790, "newUsers": 263085, "organicClicks": 152200, "paidClicks": 1450, "paidSpend": 4172.05, "signups": 29219, "purchases": 417, "blendedCPA": 10.0, "impressions": 4821711, "ctr": 0.0316, "position": 25.2, "paidNewUsers": 7353, "organicNewUsers": 175621}, {"week": "2025-01-12", "sessions": 518708, "newUsers": 352577, "organicClicks": 200617, "paidClicks": 1938, "paidSpend": 5282.0, "signups": 42364, "purchases": 717, "blendedCPA": 7.37, "impressions": 5523246, "ctr": 0.0363, "position": 21.1, "paidNewUsers": 9617, "organicNewUsers": 237226}, {"week": "2025-01-19", "sessions": 559444, "newUsers": 383826, "organicClicks": 218736, "paidClicks": 2019, "paidSpend": 6148.66, "signups": 45286, "purchases": 843, "blendedCPA": 7.29, "impressions": 5567286, "ctr": 0.0393, "position": 19.4, "paidNewUsers": 10247, "organicNewUsers": 262670}, {"week": "2025-01-26", "sessions": 573059, "newUsers": 388986, "organicClicks": 216803, "paidClicks": 2227, "paidSpend": 6106.72, "signups": 45131, "purchases": 825, "blendedCPA": 7.4, "impressions": 5786206, "ctr": 0.0375, "position": 20.1, "paidNewUsers": 11089, "organicNewUsers": 262002}, {"week": "2025-02-02", "sessions": 554626, "newUsers": 383681, "organicClicks": 223518, "paidClicks": 2241, "paidSpend": 4805.23, "signups": 50310, "purchases": 664, "blendedCPA": 7.24, "impressions": 5864394, "ctr": 0.0381, "position": 20.0, "paidNewUsers": 5952, "organicNewUsers": 266712}, {"week": "2025-02-09", "sessions": 570132, "newUsers": 404001, "organicClicks": 235114, "paidClicks": 2533, "paidSpend": 6283.36, "signups": 56220, "purchases": 659, "blendedCPA": 9.53, "impressions": 6132426, "ctr": 0.0383, "position": 20.4, "paidNewUsers": 3256, "organicNewUsers": 280439}, {"week": "2025-02-16", "sessions": 582094, "newUsers": 402522, "organicClicks": 237929, "paidClicks": 2256, "paidSpend": 5812.14, "signups": 58017, "purchases": 566, "blendedCPA": 10.27, "impressions": 5956000, "ctr": 0.0399, "position": 19.8, "paidNewUsers": 1559, "organicNewUsers": 280508}, {"week": "2025-02-23", "sessions": 569532, "newUsers": 401986, "organicClicks": 243335, "paidClicks": 2699, "paidSpend": 6972.65, "signups": 60503, "purchases": 594, "blendedCPA": 11.74, "impressions": 6293974, "ctr": 0.0387, "position": 21.1, "paidNewUsers": 2552, "organicNewUsers": 284041}, {"week": "2025-03-02", "sessions": 563290, "newUsers": 397308, "organicClicks": 239610, "paidClicks": 2702, "paidSpend": 6910.75, "signups": 59233, "purchases": 642, "blendedCPA": 10.76, "impressions": 6298046, "ctr": 0.038, "position": 21.5, "paidNewUsers": 4070, "organicNewUsers": 275076}, {"week": "2025-03-09", "sessions": 548749, "newUsers": 381517, "organicClicks": 227316, "paidClicks": 2237, "paidSpend": 5804.91, "signups": 59467, "purchases": 605, "blendedCPA": 9.59, "impressions": 5898102, "ctr": 0.0385, "position": 21.4, "paidNewUsers": 1710, "organicNewUsers": 263784}, {"week": "2025-03-16", "sessions": 553526, "newUsers": 386094, "organicClicks": 229698, "paidClicks": 2246, "paidSpend": 5464.79, "signups": 60360, "purchases": 618, "blendedCPA": 8.84, "impressions": 5810761, "ctr": 0.0395, "position": 20.8, "paidNewUsers": 1524, "organicNewUsers": 265008}, {"week": "2025-03-23", "sessions": 545077, "newUsers": 382090, "organicClicks": 230109, "paidClicks": 1894, "paidSpend": 4745.34, "signups": 61053, "purchases": 632, "blendedCPA": 7.51, "impressions": 5825309, "ctr": 0.0395, "position": 21.5, "paidNewUsers": 1330, "organicNewUsers": 264828}, {"week": "2025-03-30", "sessions": 528574, "newUsers": 374786, "organicClicks": 221584, "paidClicks": 2148, "paidSpend": 5453.5, "signups": 59578, "purchases": 613, "blendedCPA": 8.9, "impressions": 5728159, "ctr": 0.0387, "position": 21.7, "paidNewUsers": 1499, "organicNewUsers": 256706}, {"week": "2025-04-06", "sessions": 527507, "newUsers": 364793, "organicClicks": 219230, "paidClicks": 2245, "paidSpend": 5759.71, "signups": 56884, "purchases": 620, "blendedCPA": 9.29, "impressions": 5900772, "ctr": 0.0372, "position": 22.4, "paidNewUsers": 1896, "organicNewUsers": 255344}, {"week": "2025-04-13", "sessions": 514366, "newUsers": 359788, "organicClicks": 212792, "paidClicks": 2699, "paidSpend": 6800.16, "signups": 63520, "purchases": 571, "blendedCPA": 11.91, "impressions": 5649555, "ctr": 0.0377, "position": 21.3, "paidNewUsers": 1890, "organicNewUsers": 249355}, {"week": "2025-04-20", "sessions": 458524, "newUsers": 321065, "organicClicks": 185785, "paidClicks": 2411, "paidSpend": 5722.37, "signups": 57673, "purchases": 467, "blendedCPA": 12.25, "impressions": 5088684, "ctr": 0.0365, "position": 22.4, "paidNewUsers": 1494, "organicNewUsers": 217278}, {"week": "2025-04-27", "sessions": 494535, "newUsers": 344381, "organicClicks": 192828, "paidClicks": 2299, "paidSpend": 4980.36, "signups": 64450, "purchases": 551, "blendedCPA": 9.04, "impressions": 6018555, "ctr": 0.032, "position": 24.6, "paidNewUsers": 7783, "organicNewUsers": 227492}, {"week": "2025-05-04", "sessions": 457227, "newUsers": 318536, "organicClicks": 169800, "paidClicks": 2265, "paidSpend": 5207.36, "signups": 60977, "purchases": 597, "blendedCPA": 8.72, "impressions": 5843725, "ctr": 0.0291, "position": 24.4, "paidNewUsers": 10329, "organicNewUsers": 201260}, {"week": "2025-05-11", "sessions": 458801, "newUsers": 321591, "organicClicks": 170827, "paidClicks": 1478, "paidSpend": 3344.41, "signups": 61416, "purchases": 541, "blendedCPA": 6.18, "impressions": 6066213, "ctr": 0.0282, "position": 23.4, "paidNewUsers": 11602, "organicNewUsers": 202333}, {"week": "2025-05-18", "sessions": 471896, "newUsers": 328725, "organicClicks": 187738, "paidClicks": 1180, "paidSpend": 2550.46, "signups": 59087, "purchases": 545, "blendedCPA": 4.68, "impressions": 6029620, "ctr": 0.0311, "position": 23.0, "paidNewUsers": 4997, "organicNewUsers": 216840}, {"week": "2025-05-25", "sessions": 440679, "newUsers": 308251, "organicClicks": 182165, "paidClicks": 1253, "paidSpend": 2903.7, "signups": 52788, "purchases": 476, "blendedCPA": 6.1, "impressions": 6042978, "ctr": 0.0301, "position": 23.3, "paidNewUsers": 1339, "organicNewUsers": 204212}, {"week": "2025-06-01", "sessions": 422367, "newUsers": 298202, "organicClicks": 169990, "paidClicks": 1428, "paidSpend": 3530.88, "signups": 51902, "purchases": 481, "blendedCPA": 7.34, "impressions": 6117588, "ctr": 0.0278, "position": 25.1, "paidNewUsers": 1038, "organicNewUsers": 191419}, {"week": "2025-06-08", "sessions": 383308, "newUsers": 266803, "organicClicks": 153337, "paidClicks": 4042, "paidSpend": 4633.12, "signups": 46367, "purchases": 437, "blendedCPA": 10.6, "impressions": 5958291, "ctr": 0.0257, "position": 24.6, "paidNewUsers": 1410, "organicNewUsers": 176111}, {"week": "2025-06-15", "sessions": 363069, "newUsers": 251146, "organicClicks": 145811, "paidClicks": 1748, "paidSpend": 3899.02, "signups": 45397, "purchases": 434, "blendedCPA": 8.98, "impressions": 5692511, "ctr": 0.0256, "position": 24.3, "paidNewUsers": 3398, "organicNewUsers": 162268}, {"week": "2025-06-22", "sessions": 338255, "newUsers": 234543, "organicClicks": 134269, "paidClicks": 1702, "paidSpend": 4090.72, "signups": 42082, "purchases": 474, "blendedCPA": 8.63, "impressions": 5638672, "ctr": 0.0238, "position": 25.0, "paidNewUsers": 3373, "organicNewUsers": 152940}, {"week": "2025-06-29", "sessions": 331938, "newUsers": 228396, "organicClicks": 130340, "paidClicks": 1750, "paidSpend": 4383.04, "signups": 42796, "purchases": 396, "blendedCPA": 11.07, "impressions": 5551997, "ctr": 0.0235, "position": 24.5, "paidNewUsers": 1452, "organicNewUsers": 149328}, {"week": "2025-07-06", "sessions": 298364, "newUsers": 206636, "organicClicks": 117952, "paidClicks": 1681, "paidSpend": 4343.46, "signups": 39564, "purchases": 463, "blendedCPA": 9.38, "impressions": 5404649, "ctr": 0.0218, "position": 25.3, "paidNewUsers": 1339, "organicNewUsers": 135342}, {"week": "2025-07-13", "sessions": 306067, "newUsers": 208539, "organicClicks": 117632, "paidClicks": 1851, "paidSpend": 5014.23, "signups": 41510, "purchases": 405, "blendedCPA": 12.38, "impressions": 5436598, "ctr": 0.0216, "position": 25.3, "paidNewUsers": 1811, "organicNewUsers": 136281}, {"week": "2025-07-20", "sessions": 300094, "newUsers": 203599, "organicClicks": 112641, "paidClicks": 1670, "paidSpend": 4065.41, "signups": 40891, "purchases": 342, "blendedCPA": 11.89, "impressions": 5779223, "ctr": 0.0195, "position": 26.2, "paidNewUsers": 1605, "organicNewUsers": 133189}, {"week": "2025-07-27", "sessions": 275296, "newUsers": 197465, "organicClicks": 114267, "paidClicks": 1253, "paidSpend": 3346.59, "signups": 41393, "purchases": 213, "blendedCPA": 15.71, "impressions": 5739685, "ctr": 0.0199, "position": 26.7, "paidNewUsers": 985, "organicNewUsers": 133512}, {"week": "2025-08-03", "sessions": 222136, "newUsers": 172077, "organicClicks": 106615, "paidClicks": 1240, "paidSpend": 3128.48, "signups": 42600, "purchases": 2, "blendedCPA": 1564.24, "impressions": 5507249, "ctr": 0.0194, "position": 26.6, "paidNewUsers": 2016, "organicNewUsers": 126223}, {"week": "2025-08-10", "sessions": 216868, "newUsers": 167073, "organicClicks": 100002, "paidClicks": 888, "paidSpend": 2113.48, "signups": 40927, "purchases": 0, "blendedCPA": null, "impressions": 5353588, "ctr": 0.0187, "position": 27.1, "paidNewUsers": 2738, "organicNewUsers": 120630}, {"week": "2025-08-17", "sessions": 252304, "newUsers": 179726, "organicClicks": 101901, "paidClicks": 730, "paidSpend": 1789.56, "signups": 38167, "purchases": 214, "blendedCPA": 8.36, "impressions": 5358776, "ctr": 0.019, "position": 27.1, "paidNewUsers": 1447, "organicNewUsers": 120787}, {"week": "2025-08-24", "sessions": 281946, "newUsers": 196781, "organicClicks": 108812, "paidClicks": 901, "paidSpend": 1866.91, "signups": 39058, "purchases": 319, "blendedCPA": 5.85, "impressions": 5945771, "ctr": 0.0183, "position": 28.2, "paidNewUsers": 782, "organicNewUsers": 128324}, {"week": "2025-08-31", "sessions": 287588, "newUsers": 202531, "organicClicks": 111210, "paidClicks": 778, "paidSpend": 2035.91, "signups": 38582, "purchases": 368, "blendedCPA": 5.53, "impressions": 6067068, "ctr": 0.0183, "position": 28.1, "paidNewUsers": 813, "organicNewUsers": 130575}, {"week": "2025-09-07", "sessions": 307117, "newUsers": 215017, "organicClicks": 120607, "paidClicks": 863, "paidSpend": 2417.21, "signups": 38398, "purchases": 433, "blendedCPA": 5.58, "impressions": 6458805, "ctr": 0.0187, "position": 27.7, "paidNewUsers": 842, "organicNewUsers": 137433}, {"week": "2025-09-14", "sessions": 317146, "newUsers": 218506, "organicClicks": 125309, "paidClicks": 1596, "paidSpend": 3692.93, "signups": 39900, "purchases": 408, "blendedCPA": 9.05, "impressions": 5002089, "ctr": 0.0251, "position": 19.4, "paidNewUsers": 861, "organicNewUsers": 141011}, {"week": "2025-09-21", "sessions": 307938, "newUsers": 219806, "organicClicks": 127171, "paidClicks": 1073, "paidSpend": 2851.99, "signups": 40924, "purchases": 440, "blendedCPA": 6.48, "impressions": 4210897, "ctr": 0.0302, "position": 13.6, "paidNewUsers": 832, "organicNewUsers": 142694}, {"week": "2025-09-28", "sessions": 297798, "newUsers": 212811, "organicClicks": 128264, "paidClicks": 1304, "paidSpend": 3240.8, "signups": 39256, "purchases": 412, "blendedCPA": 7.87, "impressions": 3922406, "ctr": 0.0327, "position": 12.7, "paidNewUsers": 1013, "organicNewUsers": 144401}, {"week": "2025-10-05", "sessions": 299698, "newUsers": 216863, "organicClicks": 124394, "paidClicks": 1487, "paidSpend": 3755.85, "signups": 44687, "purchases": 433, "blendedCPA": 8.67, "impressions": 3884166, "ctr": 0.032, "position": 13.5, "paidNewUsers": 1211, "organicNewUsers": 138634}, {"week": "2025-10-12", "sessions": 305244, "newUsers": 218293, "organicClicks": 125163, "paidClicks": 1347, "paidSpend": 3456.26, "signups": 44199, "purchases": 400, "blendedCPA": 8.64, "impressions": 3652110, "ctr": 0.0343, "position": 13.2, "paidNewUsers": 1693, "organicNewUsers": 139872}, {"week": "2025-10-19", "sessions": 308169, "newUsers": 223520, "organicClicks": 128764, "paidClicks": 1475, "paidSpend": 3656.65, "signups": 41439, "purchases": 390, "blendedCPA": 9.38, "impressions": 3794597, "ctr": 0.0339, "position": 12.9, "paidNewUsers": 1456, "organicNewUsers": 143225}, {"week": "2025-10-26", "sessions": 313320, "newUsers": 226800, "organicClicks": 137813, "paidClicks": 1737, "paidSpend": 3512.28, "signups": 50542, "purchases": 453, "blendedCPA": 7.75, "impressions": 3789167, "ctr": 0.0364, "position": 11.8, "paidNewUsers": 1545, "organicNewUsers": 149306}, {"week": "2025-11-02", "sessions": 332391, "newUsers": 249369, "organicClicks": 125938, "paidClicks": 1987, "paidSpend": 3818.36, "signups": 41276, "purchases": 374, "blendedCPA": 10.21, "impressions": 3789450, "ctr": 0.0332, "position": 12.0, "paidNewUsers": 1473, "organicNewUsers": 137775}, {"week": "2025-11-09", "sessions": 307290, "newUsers": 226151, "organicClicks": 126907, "paidClicks": 2535, "paidSpend": 5276.05, "signups": 41100, "purchases": 466, "blendedCPA": 11.32, "impressions": 4112031, "ctr": 0.0309, "position": 11.6, "paidNewUsers": 2714, "organicNewUsers": 137985}, {"week": "2025-11-16", "sessions": 332728, "newUsers": 250955, "organicClicks": 123644, "paidClicks": 3117, "paidSpend": 6389.53, "signups": 38315, "purchases": 454, "blendedCPA": 14.07, "impressions": 4374081, "ctr": 0.0283, "position": 11.3, "paidNewUsers": 3465, "organicNewUsers": 137122}, {"week": "2025-11-23", "sessions": 283940, "newUsers": 208104, "organicClicks": 126683, "paidClicks": 3139, "paidSpend": 5932.59, "signups": 34209, "purchases": 364, "blendedCPA": 16.3, "impressions": 4172002, "ctr": 0.0304, "position": 12.5, "paidNewUsers": 4552, "organicNewUsers": 129252}, {"week": "2025-11-30", "sessions": 310634, "newUsers": 236148, "organicClicks": 114221, "paidClicks": 2545, "paidSpend": 4956.11, "signups": 33644, "purchases": 361, "blendedCPA": 13.73, "impressions": 3904646, "ctr": 0.0293, "position": 13.5, "paidNewUsers": 2921, "organicNewUsers": 124788}, {"week": "2025-12-07", "sessions": 301347, "newUsers": 221377, "organicClicks": 112934, "paidClicks": 3827, "paidSpend": 6091.43, "signups": 36084, "purchases": 410, "blendedCPA": 14.86, "impressions": 4251951, "ctr": 0.0266, "position": 16.0, "paidNewUsers": 4622, "organicNewUsers": 125455}, {"week": "2025-12-14", "sessions": 282221, "newUsers": 215394, "organicClicks": 106854, "paidClicks": 3284, "paidSpend": 6607.82, "signups": 32899, "purchases": 377, "blendedCPA": 17.53, "impressions": 4267839, "ctr": 0.025, "position": 17.8, "paidNewUsers": 3649, "organicNewUsers": 116146}, {"week": "2025-12-21", "sessions": 247794, "newUsers": 185876, "organicClicks": 98209, "paidClicks": 2579, "paidSpend": 5609.52, "signups": 27054, "purchases": 247, "blendedCPA": 22.71, "impressions": 4047406, "ctr": 0.0243, "position": 17.7, "paidNewUsers": 3599, "organicNewUsers": 107161}, {"week": "2025-12-28", "sessions": 182424, "newUsers": 142292, "organicClicks": 73985, "paidClicks": 1103, "paidSpend": 3194.61, "signups": 20514, "purchases": 145, "blendedCPA": 22.03, "impressions": 3221263, "ctr": 0.023, "position": 19.6, "paidNewUsers": 1120, "organicNewUsers": 82488}, {"week": "2026-01-04", "sessions": 185641, "newUsers": 148329, "organicClicks": 67557, "paidClicks": 687, "paidSpend": 2013.09, "signups": 18312, "purchases": 126, "blendedCPA": 15.98, "impressions": 3250029, "ctr": 0.0208, "position": 18.7, "paidNewUsers": 1029, "organicNewUsers": 74147}, {"week": "2026-01-11", "sessions": 224665, "newUsers": 171057, "organicClicks": 86029, "paidClicks": 1017, "paidSpend": 2463.91, "signups": 26031, "purchases": 214, "blendedCPA": 11.51, "impressions": 4212824, "ctr": 0.0204, "position": 19.3, "paidNewUsers": 1065, "organicNewUsers": 95682}, {"week": "2026-01-18", "sessions": 254115, "newUsers": 191940, "organicClicks": 91922, "paidClicks": 1244, "paidSpend": 3448.7, "signups": 27826, "purchases": 267, "blendedCPA": 12.92, "impressions": 4205356, "ctr": 0.0219, "position": 17.9, "paidNewUsers": 1656, "organicNewUsers": 104222}, {"week": "2026-01-25", "sessions": 263010, "newUsers": 201250, "organicClicks": 100728, "paidClicks": 1559, "paidSpend": 5539.49, "signups": 31202, "purchases": 244, "blendedCPA": 22.7, "impressions": 4683257, "ctr": 0.0215, "position": 18.2, "paidNewUsers": 1453, "organicNewUsers": 112230}, {"week": "2026-02-01", "sessions": 274775, "newUsers": 206398, "organicClicks": 100585, "paidClicks": 1961, "paidSpend": 6654.81, "signups": 27796, "purchases": 263, "blendedCPA": 25.3, "impressions": 5027044, "ctr": 0.02, "position": 18.5, "paidNewUsers": 2681, "organicNewUsers": 115154}, {"week": "2026-02-08", "sessions": 284879, "newUsers": 215477, "organicClicks": 100321, "paidClicks": 1947, "paidSpend": 5704.95, "signups": 29239, "purchases": 320, "blendedCPA": 17.83, "impressions": 5272129, "ctr": 0.019, "position": 15.0, "paidNewUsers": 3463, "organicNewUsers": 116758}, {"week": "2026-02-15", "sessions": 261119, "newUsers": 198855, "organicClicks": 96934, "paidClicks": 2042, "paidSpend": 6140.97, "signups": 27721, "purchases": 358, "blendedCPA": 17.15, "impressions": 6271102, "ctr": 0.0155, "position": 12.6, "paidNewUsers": 2966, "organicNewUsers": 110753}, {"week": "2026-02-22", "sessions": 256561, "newUsers": 195449, "organicClicks": 97772, "paidClicks": 2122, "paidSpend": 6627.63, "signups": 27853, "purchases": 329, "blendedCPA": 20.14, "impressions": 5676277, "ctr": 0.0172, "position": 11.3, "paidNewUsers": 4185, "organicNewUsers": 110258}, {"week": "2026-03-01", "sessions": 274655, "newUsers": 207540, "organicClicks": 101442, "paidClicks": 2345, "paidSpend": 6806.85, "signups": 27141, "purchases": 334, "blendedCPA": 20.38, "impressions": 5613913, "ctr": 0.0181, "position": 11.5, "paidNewUsers": 6151, "organicNewUsers": 117040}, {"week": "2026-03-08", "sessions": 260965, "newUsers": 198574, "organicClicks": 102426, "paidClicks": 2174, "paidSpend": 5947.05, "signups": 27613, "purchases": 371, "blendedCPA": 16.03, "impressions": 5409472, "ctr": 0.0189, "position": 11.7, "paidNewUsers": 2840, "organicNewUsers": 115367}, {"week": "2026-03-15", "sessions": 261526, "newUsers": 197911, "organicClicks": 105916, "paidClicks": 1846, "paidSpend": 4948.23, "signups": 29682, "purchases": 357, "blendedCPA": 13.86, "impressions": 5121684, "ctr": 0.0207, "position": 11.4, "paidNewUsers": 1707, "organicNewUsers": 116678}, {"week": "2026-03-22", "sessions": 238357, "newUsers": 179740, "organicClicks": 95711, "paidClicks": 1507, "paidSpend": 4271.58, "signups": 26132, "purchases": 339, "blendedCPA": 12.6, "impressions": 4664475, "ctr": 0.0205, "position": 12.0, "paidNewUsers": 2003, "organicNewUsers": 105629}, {"week": "2026-03-29", "sessions": 235511, "newUsers": 175931, "organicClicks": 99551, "paidClicks": 5799, "paidSpend": 6469.59, "signups": 25621, "purchases": 238, "blendedCPA": 27.18, "impressions": 6826738, "ctr": 0.0146, "position": 9.0, "paidNewUsers": 2673, "organicNewUsers": 109093}, {"week": "2026-04-05", "sessions": 37118, "newUsers": 27617, "organicClicks": 0, "paidClicks": 929, "paidSpend": 1214.57, "signups": 4337, "purchases": 50, "blendedCPA": 24.29, "impressions": 0, "ctr": 0, "position": 0, "paidNewUsers": 478, "organicNewUsers": 16914}], "budgetPPC": [{"month": "2026-01", "label": "Jan 2026", "budget": 9136, "actual": 7070, "variance": -2066, "variancePct": -22.6}, {"month": "2026-02", "label": "Feb 2026", "budget": 13379, "actual": 16837, "variance": 3458, "variancePct": 25.8}, {"month": "2026-03", "label": "Mar 2026", "budget": 9877, "actual": 10018, "variance": 141, "variancePct": 1.4}, {"month": "2026-04", "label": "Apr 2026", "budget": 11111, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-05", "label": "May 2026", "budget": 11667, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-06", "label": "Jun 2026", "budget": 12250, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-07", "label": "Jul 2026", "budget": 12863, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-08", "label": "Aug 2026", "budget": 13506, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-09", "label": "Sep 2026", "budget": 14181, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-10", "label": "Oct 2026", "budget": 14890, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-11", "label": "Nov 2026", "budget": 15634, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-12", "label": "Dec 2026", "budget": 16416, "actual": null, "variance": null, "variancePct": null}], "budgetNonPPC": [{"month": "2026-01", "label": "Jan 2026", "budget": 938578, "actual": 816120, "variance": -122458, "variancePct": -13.0}, {"month": "2026-02", "label": "Feb 2026", "budget": 942653, "actual": 803271, "variance": -139382, "variancePct": -14.8}, {"month": "2026-03", "label": "Mar 2026", "budget": 735000, "actual": 792238, "variance": 57238, "variancePct": 7.8}, {"month": "2026-04", "label": "Apr 2026", "budget": 718000, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-05", "label": "May 2026", "budget": 708000, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-06", "label": "Jun 2026", "budget": 590000, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-07", "label": "Jul 2026", "budget": 565000, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-08", "label": "Aug 2026", "budget": 560000, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-09", "label": "Sep 2026", "budget": 800000, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-10", "label": "Oct 2026", "budget": 905000, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-11", "label": "Nov 2026", "budget": 865000, "actual": null, "variance": null, "variancePct": null}, {"month": "2026-12", "label": "Dec 2026", "budget": 760000, "actual": null, "variance": null, "variancePct": null}], "campaigns": [{"name": "GS_NB_AMS_US-CA_E_Infographics_PLP_ML", "status": "ENABLED", "type": "SEARCH", "spend": 87378.42984700002, "clicks": 34961, "impressions": 490263, "conversions": 658.75}, {"name": "GS_NB_PMAX_Presentations/all other content type", "status": "ENABLED", "type": "PERFORMANCE_MAX", "spend": 77079.73796500001, "clicks": 63912, "impressions": 3334205, "conversions": 539.8037360000001}, {"name": "GS_NB_AMS_US_One pager-employee handbook-training", "status": "ENABLED", "type": "SEARCH", "spend": 46848.30151300005, "clicks": 16331, "impressions": 214133, "conversions": 290.5}, {"name": "GS_NB_AMS_US_Whitepapers_Exact+PHR", "status": "ENABLED", "type": "SEARCH", "spend": 36937.08496799996, "clicks": 7975, "impressions": 88710, "conversions": 190.5}, {"name": "GS_NB_Teams/Enterprise audience", "status": "PAUSED", "type": "SEARCH", "spend": 32232.288168000065, "clicks": 9740, "impressions": 130906, "conversions": 245.333333}, {"name": "GS_NB_AMS_US-CA_Ebooks_Present_Reports_Biz_plan_Consolidated", "status": "ENABLED", "type": "SEARCH", "spend": 29908.916638999974, "clicks": 8262, "impressions": 135659, "conversions": 118.0}, {"name": "GS_NB_AMS_US_AI_max", "status": "ENABLED", "type": "SEARCH", "spend": 22922.253061999996, "clicks": 12924, "impressions": 160219, "conversions": 113.970733}, {"name": "GV_Visme Brand Awareness - Retargeting (Consideration)", "status": "PAUSED", "type": "VIDEO", "spend": 19245.786473000015, "clicks": 1072, "impressions": 1497122, "conversions": 0.0}, {"name": "GS_NB_US_Presentations-Slides-decks-templates_vol2", "status": "ENABLED", "type": "SEARCH", "spend": 16670.159915000004, "clicks": 4430, "impressions": 115398, "conversions": 43.0}, {"name": "GV_Visme Brand Awareness (Placements)_Consideration", "status": "PAUSED", "type": "VIDEO", "spend": 12454.674433000004, "clicks": 1023, "impressions": 523215, "conversions": 1.0}, {"name": "GS_NB_AMS_US_Proposals_(Exact+Phrase)", "status": "PAUSED", "type": "SEARCH", "spend": 11078.585728999993, "clicks": 3121, "impressions": 62889, "conversions": 42.0}, {"name": "GS_NB_AMS_US-CA_Presentations_Business-use-case-Templates_CONSOLIDATED", "status": "PAUSED", "type": "SEARCH", "spend": 10680.379640000006, "clicks": 2786, "impressions": 74114, "conversions": 26.0}, {"name": "GV_Visme MarketingICP_Marketing videos_21.06", "status": "PAUSED", "type": "VIDEO", "spend": 10540.302621000003, "clicks": 972, "impressions": 424969, "conversions": 2.0}, {"name": "GS_NB_Campaign Visme Ads (Spanish) - Exact 17.05", "status": "PAUSED", "type": "SEARCH", "spend": 7809.315500000002, "clicks": 11962, "impressions": 109071, "conversions": 43.0}, {"name": "GS_BR_Branded_Campaign", "status": "ENABLED", "type": "SEARCH", "spend": 6166.259598999999, "clicks": 30722, "impressions": 51230, "conversions": 270.58333400000004}, {"name": "GS_NB_AMS_US_Reports_Exact+PHR", "status": "PAUSED", "type": "SEARCH", "spend": 4490.906139000001, "clicks": 1447, "impressions": 40169, "conversions": 22.0}, {"name": "GS_NB_AMS_US_Switchers_Powerpoint ( Updated )", "status": "PAUSED", "type": "SEARCH", "spend": 4279.35, "clicks": 495, "impressions": 8561, "conversions": 6.0}, {"name": "GL_NB_US_Lead-Gen_Training-Content", "status": "PAUSED", "type": "SEARCH", "spend": 3798.2167439999985, "clicks": 536, "impressions": 11331, "conversions": 17.0}, {"name": "GS_NB_AMS_US_One pager-employee handbook-training tCPA vs Max conv value", "status": "ENABLED", "type": "SEARCH", "spend": 2694.1298469999992, "clicks": 435, "impressions": 5710, "conversions": 3.0}, {"name": "GL_NB_Executives & Marketing_In-market audiences", "status": "PAUSED", "type": "SEARCH", "spend": 2568.3599999999997, "clicks": 338, "impressions": 10085, "conversions": 1.0}, {"name": "GL_US_B2B Lead Gen_Interactive content & executives", "status": "PAUSED", "type": "SEARCH", "spend": 2519.699999999999, "clicks": 193, "impressions": 9359, "conversions": 0.0}, {"name": "GV_Visme Whiteboards - Video Efficient reach - 2022-10-23", "status": "PAUSED", "type": "VIDEO", "spend": 2463.3254480000014, "clicks": 725, "impressions": 401678, "conversions": 0.0}, {"name": "GS_NB_AMS_US_Business-plan_keywords_Exact+Phrase", "status": "PAUSED", "type": "SEARCH", "spend": 2434.6700000000005, "clicks": 423, "impressions": 6450, "conversions": 10.5}, {"name": "GS_NB_AMS_US_AI Presentations, AI Documents", "status": "PAUSED", "type": "SEARCH", "spend": 2427.2372859999996, "clicks": 1877, "impressions": 33456, "conversions": 6.0}, {"name": "GS_NB_US_Form Builder", "status": "PAUSED", "type": "SEARCH", "spend": 2329.45473, "clicks": 890, "impressions": 27547, "conversions": 0.0}, {"name": "GS_NB_AMS_US_Documents-Brand-kit", "status": "PAUSED", "type": "SEARCH", "spend": 2324.273900999999, "clicks": 317, "impressions": 5817, "conversions": 3.0}, {"name": "GS_NB_US_High volume & Dynamic", "status": "PAUSED", "type": "SEARCH", "spend": 1989.5294979999999, "clicks": 824, "impressions": 19203, "conversions": 13.0}, {"name": "GS_NB_US_Sponsorship deck", "status": "PAUSED", "type": "SEARCH", "spend": 1974.2701110000005, "clicks": 324, "impressions": 3690, "conversions": 2.0}, {"name": "GS_NB_US_Biz_Pro_Presentations-Slides-decks-templates_vol2", "status": "PAUSED", "type": "SEARCH", "spend": 1866.2897670000002, "clicks": 350, "impressions": 6104, "conversions": 3.0}, {"name": "GS_NB_PMAX_Presentations/all other content type_Old PMAX settings", "status": "ENABLED", "type": "PERFORMANCE_MAX", "spend": 1685.2032599999995, "clicks": 1060, "impressions": 21734, "conversions": 12.833333}, {"name": "GD_NB_Executives_Banners_Competitor-brand-searches", "status": "PAUSED", "type": "DISPLAY", "spend": 1645.3860659999998, "clicks": 1375, "impressions": 216444, "conversions": 3.0}, {"name": "GS_NB_US_Low-Competition-Marketing plan_Org_chart_Consolidated", "status": "PAUSED", "type": "SEARCH", "spend": 1536.9431629999997, "clicks": 342, "impressions": 13066, "conversions": 1.0}, {"name": "GD_Retargeting_Youtube-video-viewers", "status": "PAUSED", "type": "DISPLAY", "spend": 1511.522408, "clicks": 5654, "impressions": 284052, "conversions": 0.0}, {"name": "GS_NB_CAN_PMAX_Presentations/all other content type", "status": "PAUSED", "type": "PERFORMANCE_MAX", "spend": 1483.9780970000002, "clicks": 965, "impressions": 42979, "conversions": 6.0}, {"name": "GS_NB_AMS_US_Switchers_Canva", "status": "PAUSED", "type": "SEARCH", "spend": 1472.48, "clicks": 353, "impressions": 5078, "conversions": 2.0}, {"name": "GL_US_RLSA_B2B Lead Gen_Executives & Marketers", "status": "PAUSED", "type": "SEARCH", "spend": 1366.9600000000003, "clicks": 127, "impressions": 1198, "conversions": 0.0}, {"name": "GD_USA_Free Users_1_Step_retargeting_Templates", "status": "PAUSED", "type": "DISPLAY", "spend": 1338.6335549999994, "clicks": 1027, "impressions": 170528, "conversions": 2.0}, {"name": "GS_NB_US_Graph And Chart Maker", "status": "PAUSED", "type": "SEARCH", "spend": 1322.1900000000003, "clicks": 1270, "impressions": 22201, "conversions": 4.0}, {"name": "GD_USA_Free Users_1_Step_retargeting_Case_Studies", "status": "PAUSED", "type": "DISPLAY", "spend": 1270.3735649999996, "clicks": 1191, "impressions": 165487, "conversions": 1.0}, {"name": "GL_US_B2B Lead Gen_Articulate", "status": "PAUSED", "type": "SEARCH", "spend": 1266.6499999999999, "clicks": 86, "impressions": 3457, "conversions": 1.0}, {"name": "GD_USA_Free Users_2_Step_retargeting_5x_Faster", "status": "PAUSED", "type": "DISPLAY", "spend": 1082.7402319999999, "clicks": 882, "impressions": 98622, "conversions": 5.0}, {"name": "GS_NB_AMS_US_Switchers_Adobe", "status": "PAUSED", "type": "SEARCH", "spend": 1061.03, "clicks": 146, "impressions": 8003, "conversions": 0.0}, {"name": "GD_Retargeting_Lead-Gen", "status": "PAUSED", "type": "DISPLAY", "spend": 1000.4547009999999, "clicks": 345, "impressions": 64025, "conversions": 1.0}, {"name": "GS_NB_AMS_US_Whitepapers_Exact+PHR PLP vs Organic", "status": "ENABLED", "type": "SEARCH", "spend": 976.147433, "clicks": 185, "impressions": 1845, "conversions": 1.0}, {"name": "GL_NB_US_Interactive-Ebook_LPs", "status": "PAUSED", "type": "SEARCH", "spend": 930.857327, "clicks": 191, "impressions": 2700, "conversions": 1.0}, {"name": "GS_NB_AMS_US_Business pitch and sponsorship", "status": "PAUSED", "type": "SEARCH", "spend": 888.5395739999998, "clicks": 240, "impressions": 4159, "conversions": 2.0}, {"name": "GS_NB_AMS_US_Business use case templates", "status": "PAUSED", "type": "SEARCH", "spend": 854.0975289999999, "clicks": 218, "impressions": 6068, "conversions": 3.0}, {"name": "GS_NB_AMS_US_Switchers_Google Slides", "status": "PAUSED", "type": "SEARCH", "spend": 790.96, "clicks": 214, "impressions": 2606, "conversions": 0.0}, {"name": "GS_NB_AMS_US_Training manuals", "status": "PAUSED", "type": "SEARCH", "spend": 776.9680950000002, "clicks": 117, "impressions": 970, "conversions": 0.0}, {"name": "GS_NB_AMS_US_Sales Plan Template", "status": "PAUSED", "type": "SEARCH", "spend": 710.189356, "clicks": 60, "impressions": 712, "conversions": 0.0}, {"name": "GS_NB_PMAX_High_LTV_content_type", "status": "PAUSED", "type": "PERFORMANCE_MAX", "spend": 686.0392530000001, "clicks": 384, "impressions": 20278, "conversions": 2.0}, {"name": "GS_NB_US_Presentations-Slides-decks-templates_vol2 Landing page experiment", "status": "ENABLED", "type": "SEARCH", "spend": 672.2165230000002, "clicks": 188, "impressions": 3118, "conversions": 3.0}, {"name": "GS_NB_PMAX_Presentations/all other content type Experiment Max conversions", "status": "PAUSED", "type": "PERFORMANCE_MAX", "spend": 593.63006, "clicks": 459, "impressions": 26135, "conversions": 0.0}, {"name": "GS_NB_AMS_US_Newsletters", "status": "PAUSED", "type": "SEARCH", "spend": 525.7799999999999, "clicks": 240, "impressions": 9445, "conversions": 0.0}, {"name": "GV_NB_Demand_Gen_All content_Infographics_VismeAI", "status": "ENABLED", "type": "DEMAND_GEN", "spend": 510.54351500000007, "clicks": 3260, "impressions": 24748, "conversions": 0.0}, {"name": "GL_US_B2B Lead Gen_Interactive training", "status": "PAUSED", "type": "SEARCH", "spend": 477.21000000000004, "clicks": 222, "impressions": 7787, "conversions": 5.0}, {"name": "GS_NB_AMS_US_Pamphlet_maker", "status": "PAUSED", "type": "SEARCH", "spend": 413.64916400000004, "clicks": 109, "impressions": 1828, "conversions": 0.0}, {"name": "GS_NB_Demand_Gen_all_content_type", "status": "PAUSED", "type": "DEMAND_GEN", "spend": 402.457633, "clicks": 2482, "impressions": 59375, "conversions": 0.0}, {"name": "GS_NB_B2B-Lead-Gen-April-2024", "status": "PAUSED", "type": "SEARCH", "spend": 373.09, "clicks": 126, "impressions": 1678, "conversions": 0.0}, {"name": "GS_NB_AI_Presentation_Maker", "status": "PAUSED", "type": "SEARCH", "spend": 371.84000000000003, "clicks": 246, "impressions": 3497, "conversions": 0.0}, {"name": "GL_NB_Executives & Marketing", "status": "PAUSED", "type": "SEARCH", "spend": 319.97, "clicks": 123, "impressions": 1824, "conversions": 0.0}, {"name": "GS_NB_AMS_US_Switchers_Miro", "status": "PAUSED", "type": "SEARCH", "spend": 255.34000000000003, "clicks": 35, "impressions": 2648, "conversions": 0.0}, {"name": "GD_B2B-Lead-gen_Retargeting_Interactive and key page visitors", "status": "PAUSED", "type": "DISPLAY", "spend": 61.674274, "clicks": 24, "impressions": 5528, "conversions": 0.0}, {"name": "GV_Retargeting_Website visitors ( no signup)", "status": "REMOVED", "type": "VIDEO", "spend": 9.459989, "clicks": 0, "impressions": 314, "conversions": 1.0}, {"name": "GV_US_Brand video_2023", "status": "PAUSED", "type": "VIDEO", "spend": 9.233489, "clicks": 0, "impressions": 674, "conversions": 0.0}, {"name": "GV_Brand-videos-Search-Lift", "status": "PAUSED", "type": "VIDEO", "spend": 7.238286, "clicks": 1, "impressions": 869, "conversions": 0.0}, {"name": "GV_BV_STEP 2 Retargeting", "status": "PAUSED", "type": "VIDEO", "spend": 6.535999, "clicks": 1, "impressions": 945, "conversions": 0.0}, {"name": "GV_Visme Brand Awareness MarketingICP_Brand Awareness (Placements)_Consideration", "status": "PAUSED", "type": "VIDEO", "spend": 1.509936, "clicks": 0, "impressions": 23, "conversions": 0.0}, {"name": "GL_NB_US_CA_Target ICP_Signups_Content types", "status": "PAUSED", "type": "SEARCH", "spend": 0.0, "clicks": 0, "impressions": 26, "conversions": 0.0}, {"name": "GL_AMS_US_Leads_Competitors", "status": "PAUSED", "type": "SEARCH", "spend": 0.0, "clicks": 0, "impressions": 57, "conversions": 0.0}], "keywords": [{"keyword": "create infographics", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_E_Infographics_PLP_ML", "spend": 33014.897119, "clicks": 13193, "impressions": 191883, "conversions": 243.321429}, {"keyword": "white paper template", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_Whitepapers_Exact+PHR PLP vs Organic", "spend": 19326.889806, "clicks": 4987, "impressions": 59128, "conversions": 85.010452}, {"keyword": "create white paper", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_AI_max", "spend": 16186.273857, "clicks": 3497, "impressions": 32166, "conversions": 92.33333300000001}, {"keyword": "infographic maker", "match_type": "BROAD", "campaign": "GS_NB_Teams/Enterprise audience", "spend": 15412.642793, "clicks": 6634, "impressions": 51819, "conversions": 120.166667}, {"keyword": "one pager template", "match_type": "PHRASE", "campaign": "GS_NB_AMS_US_One pager-employee handbook-training tCPA vs Max conv value", "spend": 14245.333786000001, "clicks": 5340, "impressions": 68278, "conversions": 85.33333300000001}, {"keyword": "infographic template", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_E_Infographics_PLP_ML", "spend": 13088.626458, "clicks": 4772, "impressions": 55422, "conversions": 95.5}, {"keyword": "Infographic template", "match_type": "PHRASE", "campaign": "GS_NB_Teams/Enterprise audience", "spend": 11733.43922, "clicks": 3233, "impressions": 32933, "conversions": 85.666666}, {"keyword": "create one pager", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_One pager-employee handbook-training", "spend": 7142.806603999999, "clicks": 2132, "impressions": 23712, "conversions": 38.5}, {"keyword": "annual report templates", "match_type": "PHRASE", "campaign": "GS_NB_AMS_US_Reports_Exact+PHR", "spend": 6481.486225000001, "clicks": 1990, "impressions": 28315, "conversions": 28.166666}, {"keyword": "one pager maker", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_One pager-employee handbook-training", "spend": 6350.994823, "clicks": 2089, "impressions": 21310, "conversions": 40.5}, {"keyword": "infographic creator", "match_type": "BROAD", "campaign": "GS_NB_Teams/Enterprise audience", "spend": 5959.502401, "clicks": 2440, "impressions": 22269, "conversions": 44.5}, {"keyword": "project white papers", "match_type": "PHRASE", "campaign": "GS_NB_AMS_US_Business-plan_keywords_Exact+Phrase", "spend": 5250.907379, "clicks": 1042, "impressions": 12682, "conversions": 32.0}, {"keyword": "business proposal template", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_Ebooks_Present_Reports_Biz_plan_Consolidated", "spend": 5092.059151, "clicks": 1355, "impressions": 24161, "conversions": 18.0}, {"keyword": "visme", "match_type": "PHRASE", "campaign": "GS_BR_Branded_Campaign", "spend": 5069.909577, "clicks": 28938, "impressions": 46081, "conversions": 238.583334}, {"keyword": "infographics", "match_type": "EXACT", "campaign": "GS_NB_US_High volume & Dynamic", "spend": 4623.244121, "clicks": 1534, "impressions": 73112, "conversions": 38.095237}, {"keyword": "proposal template", "match_type": "PHRASE", "campaign": "GS_NB_AMS_US_Proposals_(Exact+Phrase)", "spend": 4540.3129229999995, "clicks": 1316, "impressions": 25450, "conversions": 25.5}, {"keyword": "Infographic maker", "match_type": "EXACT", "campaign": "GS_NB_Teams/Enterprise audience", "spend": 4509.294105, "clicks": 1518, "impressions": 11136, "conversions": 40.833333}, {"keyword": "business one pager", "match_type": "PHRASE", "campaign": "GS_NB_AMS_US_One pager-employee handbook-training", "spend": 4450.449498, "clicks": 1473, "impressions": 23921, "conversions": 32.0}, {"keyword": "Infographic software", "match_type": "EXACT", "campaign": "GS_NB_Teams/Enterprise audience", "spend": 4376.698446, "clicks": 1334, "impressions": 34459, "conversions": 31.0}, {"keyword": "white paper maker", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_AI_max", "spend": 4079.698616, "clicks": 980, "impressions": 11088, "conversions": 33.512063}, {"keyword": "presentation maker", "match_type": "EXACT", "campaign": "GS_NB_US_Biz_Pro_Presentations-Slides-decks-templates_vol2", "spend": 3599.339956, "clicks": 948, "impressions": 22776, "conversions": 8.0}, {"keyword": "create presentation", "match_type": "EXACT", "campaign": "GS_NB_US_Presentations-Slides-decks-templates_vol2", "spend": 3112.6641449999997, "clicks": 885, "impressions": 30011, "conversions": 16.0}, {"keyword": "Create infographic", "match_type": "PHRASE", "campaign": "GS_NB_Teams/Enterprise audience", "spend": 3037.114033, "clicks": 1101, "impressions": 14215, "conversions": 26.5}, {"keyword": "making infographics", "match_type": "PHRASE", "campaign": "GS_NB_AMS_US-CA_E_Infographics_PLP_ML", "spend": 2792.845171, "clicks": 1037, "impressions": 24190, "conversions": 23.5}, {"keyword": "infographic tool", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_E_Infographics_PLP_ML", "spend": 2594.040426, "clicks": 1018, "impressions": 20096, "conversions": 19.0}, {"keyword": "ebook creator", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_AI_max", "spend": 2557.638633, "clicks": 743, "impressions": 7751, "conversions": 4.0}, {"keyword": "ai presentation maker", "match_type": "EXACT", "campaign": "GS_NB_US_Presentations-Slides-decks-templates_vol2", "spend": 2428.651476, "clicks": 1304, "impressions": 24287, "conversions": 6.0}, {"keyword": "make an infographic", "match_type": "PHRASE", "campaign": "GS_NB_AMS_US-CA_E_Infographics_PLP_ML", "spend": 2316.552452, "clicks": 822, "impressions": 12174, "conversions": 19.0}, {"keyword": "creating an ebook", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_AI_max", "spend": 2165.6406939999997, "clicks": 501, "impressions": 9172, "conversions": 9.0}, {"keyword": "Infographic creator", "match_type": "BROAD", "campaign": "GS_NB_Teams/Enterprise audience", "spend": 2103.190176, "clicks": 614, "impressions": 5541, "conversions": 16.0}, {"keyword": "herramienta de presentacion", "match_type": "EXACT", "campaign": "GS_NB_Campaign Visme Ads (Spanish) - Exact 17.05", "spend": 2033.118679, "clicks": 3416, "impressions": 30792, "conversions": 12.0}, {"keyword": "create a pitch deck", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_Presentations_Business-use-case-Templates_CONSOLIDATED", "spend": 1870.589278, "clicks": 383, "impressions": 10194, "conversions": 6.0}, {"keyword": "ebook templates", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_Ebooks_Present_Reports_Biz_plan_Consolidated", "spend": 1823.923215, "clicks": 562, "impressions": 6579, "conversions": 5.0}, {"keyword": "one pager creator", "match_type": "PHRASE", "campaign": "GS_NB_AMS_US_One pager-employee handbook-training", "spend": 1781.416795, "clicks": 560, "impressions": 3614, "conversions": 11.0}, {"keyword": "programas de presentaciones", "match_type": "EXACT", "campaign": "GS_NB_Campaign Visme Ads (Spanish) - Exact 17.05", "spend": 1774.124945, "clicks": 2785, "impressions": 26144, "conversions": 11.0}, {"keyword": "how to create an infographic", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_E_Infographics_PLP_ML", "spend": 1764.554823, "clicks": 619, "impressions": 6932, "conversions": 16.0}, {"keyword": "training manual templates", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_Training manuals", "spend": 1739.294942, "clicks": 709, "impressions": 7394, "conversions": 15.0}, {"keyword": "creating an infographic", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_E_Infographics_PLP_ML", "spend": 1727.192149, "clicks": 710, "impressions": 8772, "conversions": 9.0}, {"keyword": "online ebook creator", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_Ebooks_Present_Reports_Biz_plan_Consolidated", "spend": 1712.505178, "clicks": 444, "impressions": 5627, "conversions": 7.0}, {"keyword": "presentation software", "match_type": "EXACT", "campaign": "GS_NB_US_Presentations-Slides-decks-templates_vol2", "spend": 1613.587769, "clicks": 357, "impressions": 14792, "conversions": 4.0}, {"keyword": "online presentation maker", "match_type": "PHRASE", "campaign": "GS_NB_US_Presentations-Slides-decks-templates_vol2", "spend": 1577.956099, "clicks": 468, "impressions": 9082, "conversions": 6.0}, {"keyword": "White paper templates", "match_type": "EXACT", "campaign": "GS_NB_Teams/Enterprise audience", "spend": 1389.520629, "clicks": 355, "impressions": 3140, "conversions": 10.5}, {"keyword": "presentation slide", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_Presentations_Business-use-case-Templates_CONSOLIDATED", "spend": 1330.92767, "clicks": 479, "impressions": 10654, "conversions": 4.0}, {"keyword": "business plan one pager", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_One pager-employee handbook-training", "spend": 1311.5044579999999, "clicks": 426, "impressions": 6445, "conversions": 8.0}, {"keyword": "one pager examples", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_One pager-employee handbook-training", "spend": 1277.747889, "clicks": 518, "impressions": 11290, "conversions": 4.0}, {"keyword": "infographic software", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_E_Infographics_PLP_ML", "spend": 1137.501434, "clicks": 463, "impressions": 5783, "conversions": 12.0}, {"keyword": "sign up form", "match_type": "PHRASE", "campaign": "GS_NB_US_Form Builder", "spend": 1076.3663689999998, "clicks": 317, "impressions": 9454, "conversions": 0.0}, {"keyword": "Ebook generator", "match_type": "EXACT", "campaign": "GS_NB_AMS_US-CA_Ebooks_Present_Reports_Biz_plan_Consolidated", "spend": 1038.76303, "clicks": 312, "impressions": 3667, "conversions": 7.0}, {"keyword": "white paper examples", "match_type": "EXACT", "campaign": "GS_NB_AMS_US_Whitepapers_Exact+PHR", "spend": 998.29767, "clicks": 292, "impressions": 4324, "conversions": 4.0}, {"keyword": "presentaciones interactivas", "match_type": "EXACT", "campaign": "GS_NB_Campaign Visme Ads (Spanish) - Exact 17.05", "spend": 962.665928, "clicks": 1986, "impressions": 15845, "conversions": 4.0}], "topQueries": [{"query": "visme", "top_page": "https://www.visme.co/", "clicks": 180122, "impressions": 19080375, "ctr": 0.009440170856180761, "position": 1.0333741227169162}, {"query": "graph maker", "top_page": "https://www.visme.co/graph-maker/", "clicks": 54652, "impressions": 221750, "ctr": 0.24645772266065388, "position": 2.6897871117747196}, {"query": "visme ai", "top_page": "https://www.visme.co/", "clicks": 19178, "impressions": 168509, "ctr": 0.11380994486941351, "position": 1.3470217367518875}, {"query": "graph generator", "top_page": "https://www.visme.co/graph-maker/", "clicks": 5583, "impressions": 40891, "ctr": 0.13653371157467414, "position": 5.501898635897768}, {"query": "ai image generator", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 5468, "impressions": 32278, "ctr": 0.1694033087551893, "position": 35.82424561620918}, {"query": "chart maker", "top_page": "https://www.visme.co/chart-maker/", "clicks": 3904, "impressions": 35883, "ctr": 0.10879803806816599, "position": 5.716389546331373}, {"query": "visme tripticos", "top_page": "https://www.visme.co/es/triptico/", "clicks": 3313, "impressions": 17150, "ctr": 0.19317784256559767, "position": 1.5165411304813345}, {"query": "powerpoint online", "top_page": "https://www.visme.co/ru/powerpoint-online/", "clicks": 3188, "impressions": 294539, "ctr": 0.010823693976009968, "position": 7.079356262682233}, {"query": "graph", "top_page": "https://www.visme.co/graph-maker/", "clicks": 2842, "impressions": 527980, "ctr": 0.005382779650744346, "position": 8.242758134106337}, {"query": "visme login", "top_page": "https://www.visme.co/", "clicks": 2401, "impressions": 14503, "ctr": 0.16555195476797904, "position": 2.1812846222591276}, {"query": "graph maker online", "top_page": "https://www.visme.co/graph-maker/", "clicks": 2259, "impressions": 9429, "ctr": 0.23958001909004137, "position": 5.161914713886067}, {"query": "timeline maker", "top_page": "https://www.visme.co/timeline-maker/", "clicks": 2207, "impressions": 36690, "ctr": 0.06015263014445353, "position": 9.01455994448127}, {"query": "ai image generator free", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 2024, "impressions": 7514, "ctr": 0.26936385413894065, "position": 27.183329790944708}, {"query": "visme.co", "top_page": "https://www.visme.co/", "clicks": 1842, "impressions": 10455, "ctr": 0.17618364418938307, "position": 2.671289773626597}, {"query": "free ai image generator", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 1710, "impressions": 6349, "ctr": 0.2693337533469838, "position": 29.971334068357223}, {"query": "visme timeline", "top_page": "https://www.visme.co/timeline-maker/", "clicks": 1699, "impressions": 16409, "ctr": 0.10354073983789384, "position": 1.8719175105977315}, {"query": "fake report maker", "top_page": "https://www.visme.co/report-maker/", "clicks": 1654, "impressions": 3358, "ctr": 0.4925550923168553, "position": 2.010386767596021}, {"query": "online graph maker", "top_page": "https://www.visme.co/graph-maker/", "clicks": 1647, "impressions": 8863, "ctr": 0.18582872616495544, "position": 5.874930829301414}, {"query": "graph creator", "top_page": "https://www.visme.co/graph-maker/", "clicks": 1644, "impressions": 20916, "ctr": 0.07860011474469306, "position": 8.01183455521121}, {"query": "offer letter format", "top_page": "https://www.visme.co/templates/job-offer-letters/accountant-job-offer-letter-templates-1425289235/", "clicks": 1626, "impressions": 74825, "ctr": 0.02173070497828266, "position": 1.248443708678966}, {"query": "image to image ai", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 1399, "impressions": 4423, "ctr": 0.3163011530635315, "position": 30.580827492652045}, {"query": "presentation maker", "top_page": "https://www.visme.co/presentation-maker/", "clicks": 1368, "impressions": 64881, "ctr": 0.02108475516715217, "position": 10.029244650588906}, {"query": "bank id card", "top_page": "https://www.visme.co/templates/id-cards/bank-id-card-1425283717/", "clicks": 1336, "impressions": 7196, "ctr": 0.18565869927737633, "position": 3.884102279043913}, {"query": "\u043f\u043e\u0432\u0435\u0440 \u043f\u043e\u0438\u043d\u0442 \u043e\u043d\u043b\u0430\u0439\u043d", "top_page": "https://www.visme.co/ru/powerpoint-online/", "clicks": 1184, "impressions": 38755, "ctr": 0.03055089665849568, "position": 5.937372607762646}, {"query": "thumbnail maker", "top_page": "https://www.visme.co/thumbnail-maker/", "clicks": 1142, "impressions": 34494, "ctr": 0.03310720705050153, "position": 10.205202537521613}, {"query": "visme gratis", "top_page": "https://www.visme.co/es/", "clicks": 1077, "impressions": 7828, "ctr": 0.13758303525804802, "position": 1.445440160779841}, {"query": "presentation templates", "top_page": "https://www.visme.co/templates/presentations/", "clicks": 1076, "impressions": 55144, "ctr": 0.019512548962715797, "position": 7.7468840394987915}, {"query": "map generator", "top_page": "https://www.visme.co/map-generator/", "clicks": 1072, "impressions": 7932, "ctr": 0.13514876449823499, "position": 9.984493192133131}, {"query": "ppt maker online free", "top_page": "https://www.visme.co/presentation-maker/", "clicks": 1059, "impressions": 19191, "ctr": 0.055182116617164295, "position": 8.069886090827474}, {"query": "visme ia", "top_page": "https://www.visme.co/es/visme-ia/", "clicks": 1057, "impressions": 6460, "ctr": 0.16362229102167183, "position": 1.721821691192676}, {"query": "ai image generator from image", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 1027, "impressions": 6078, "ctr": 0.16897005593945377, "position": 32.50542941757157}, {"query": "visme ebook", "top_page": "https://www.visme.co/ebook-creator/", "clicks": 1019, "impressions": 4305, "ctr": 0.2367015098722416, "position": 1.584160859304121}, {"query": "presentation", "top_page": "https://www.visme.co/presentation-software/", "clicks": 957, "impressions": 309046, "ctr": 0.003096626392187571, "position": 8.89826917499015}, {"query": "visme ai presentation maker", "top_page": "https://www.visme.co/ai-presentation-maker/", "clicks": 944, "impressions": 6564, "ctr": 0.14381474710542352, "position": 1.4792322586286089}, {"query": "document maker", "top_page": "https://www.visme.co/professional-document-creator/", "clicks": 930, "impressions": 11069, "ctr": 0.08401842984912819, "position": 4.903809751010397}, {"query": "\u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u044f \u0438\u0438", "top_page": "https://www.visme.co/ru/ii-konstruktor-prezentacij/", "clicks": 904, "impressions": 18522, "ctr": 0.048806824317028395, "position": 7.40335816866429}, {"query": "visme presentation", "top_page": "https://www.visme.co/", "clicks": 899, "impressions": 7426, "ctr": 0.12106113654726636, "position": 1.2480719621432774}, {"query": "ai photo generator", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 881, "impressions": 4120, "ctr": 0.21383495145631068, "position": 37.50606796116505}, {"query": "\u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u044f \u0438\u0438 \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u043e", "top_page": "https://www.visme.co/ru/ii-konstruktor-prezentacij/", "clicks": 876, "impressions": 9015, "ctr": 0.09717138103161398, "position": 6.323121668677744}, {"query": "vizme", "top_page": "https://www.visme.co/", "clicks": 876, "impressions": 4421, "ctr": 0.19814521601447635, "position": 1.3529808741230633}, {"query": "viseme", "top_page": "https://www.visme.co/", "clicks": 872, "impressions": 3267, "ctr": 0.26691153963881237, "position": 2.41919606086243}, {"query": "ppt editor online free", "top_page": "https://www.visme.co/ppt-editor/", "clicks": 851, "impressions": 8814, "ctr": 0.09655094168368504, "position": 6.897121621328975}, {"query": "\u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0431\u0443\u043a\u043b\u0435\u0442 \u043e\u043d\u043b\u0430\u0439\u043d", "top_page": "https://www.visme.co/ru/sozdat-buklet/", "clicks": 787, "impressions": 3221, "ctr": 0.2443340577460416, "position": 3.022085069070496}, {"query": "\u0432\u0438\u0441\u043c\u0435", "top_page": "https://www.visme.co/ru/", "clicks": 779, "impressions": 3436, "ctr": 0.22671711292200233, "position": 1.0044691208403258}, {"query": "visme triptico", "top_page": "https://www.visme.co/es/triptico/", "clicks": 776, "impressions": 3027, "ctr": 0.2563594317806409, "position": 1.686298376603924}, {"query": "\u0438\u043d\u0444\u043e\u0433\u0440\u0430\u0444\u0438\u043a\u0430 \u043e\u043d\u043b\u0430\u0439\u043d", "top_page": "https://www.visme.co/ru/sozdat-infografika/", "clicks": 774, "impressions": 3260, "ctr": 0.23742331288343557, "position": 2.853852351976883}, {"query": "bank id card generate", "top_page": "https://www.visme.co/templates/id-cards/bank-id-card-1425283717/", "clicks": 772, "impressions": 2157, "ctr": 0.3579044969865554, "position": 2.851182197496523}, {"query": "\u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u044e \u043e\u043d\u043b\u0430\u0439\u043d", "top_page": "https://www.visme.co/ru/powerpoint-online/", "clicks": 761, "impressions": 1497, "ctr": 0.5083500334001336, "position": 2.1341536256122327}, {"query": "infographic", "top_page": "https://www.visme.co/make-infographics/", "clicks": 759, "impressions": 650978, "ctr": 0.0011659380194107942, "position": 5.008058686318958}, {"query": "visme ai brochure maker", "top_page": "https://www.visme.co/brochure-maker/", "clicks": 758, "impressions": 4075, "ctr": 0.1860122699386503, "position": 1.7077177056367432}, {"query": "image to image ai free", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 751, "impressions": 1736, "ctr": 0.4326036866359447, "position": 22.0852534562212}, {"query": "visme.com", "top_page": "https://www.visme.co/templates/", "clicks": 738, "impressions": 3790, "ctr": 0.19472295514511873, "position": 2.14457587894448}, {"query": "infographic maker", "top_page": "https://www.visme.co/make-infographics/", "clicks": 708, "impressions": 26933, "ctr": 0.026287454052649168, "position": 8.066599332882737}, {"query": "ai brochure maker", "top_page": "https://www.visme.co/ai-brochure-maker/", "clicks": 702, "impressions": 9228, "ctr": 0.07607282184655396, "position": 11.435866819187716}, {"query": "ebook template", "top_page": "https://www.visme.co/templates/ebooks/", "clicks": 693, "impressions": 10346, "ctr": 0.06698240866035182, "position": 6.414729202896368}, {"query": "\u0438\u0438 \u0434\u043b\u044f \u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u0439", "top_page": "https://www.visme.co/ru/ii-konstruktor-prezentacij/", "clicks": 669, "impressions": 7226, "ctr": 0.09258234154442292, "position": 5.583725435925824}, {"query": "image generator", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 662, "impressions": 3313, "ctr": 0.19981889526109267, "position": 44.16150696187485}, {"query": "image generator ai", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 639, "impressions": 2767, "ctr": 0.23093603180339717, "position": 36.63426093241778}, {"query": "ai image", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 638, "impressions": 3089, "ctr": 0.20653933311751377, "position": 42.11783748786015}, {"query": "\u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u044f \u043e\u043d\u043b\u0430\u0439\u043d", "top_page": "https://www.visme.co/ru/sozdat-prezentatsiya/", "clicks": 636, "impressions": 20595, "ctr": 0.030881281864530225, "position": 8.44966218853936}, {"query": "portfolio maker ai", "top_page": "https://www.visme.co/ai-portfolio-generator/", "clicks": 625, "impressions": 3385, "ctr": 0.18463810930576072, "position": 3.0112259970457904}, {"query": "visme free", "top_page": "https://www.visme.co/", "clicks": 620, "impressions": 3033, "ctr": 0.2044180679195516, "position": 1.2061046727225153}, {"query": "ai generator", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 616, "impressions": 4054, "ctr": 0.15194869264923533, "position": 44.83258911688803}, {"query": "ai portfolio generator", "top_page": "https://www.visme.co/ai-portfolio-generator/", "clicks": 601, "impressions": 4180, "ctr": 0.1437799043062201, "position": 7.103409929863418}, {"query": "one pager template", "top_page": "https://www.visme.co/templates/one-pagers/", "clicks": 600, "impressions": 29788, "ctr": 0.020142339196992078, "position": 4.420910503352925}, {"query": "calendar maker", "top_page": "https://www.visme.co/calendar-maker/", "clicks": 578, "impressions": 10887, "ctr": 0.053090842288968494, "position": 18.50885542436291}, {"query": "image to image ai generator", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 576, "impressions": 2154, "ctr": 0.26740947075208915, "position": 39.95868152274838}, {"query": "\u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0431\u0443\u043a\u043b\u0435\u0442 \u043e\u043d\u043b\u0430\u0439\u043d", "top_page": "https://www.visme.co/ru/sozdat-buklet/", "clicks": 573, "impressions": 2386, "ctr": 0.24015088013411567, "position": 3.454321256176244}, {"query": "ebook maker", "top_page": "https://www.visme.co/ebook-creator/", "clicks": 571, "impressions": 8723, "ctr": 0.06545913103290152, "position": 10.520435071207462}, {"query": "wallpaper maker", "top_page": "https://www.visme.co/wallpaper-maker/", "clicks": 562, "impressions": 21950, "ctr": 0.025603644646924828, "position": 11.751799544419134}, {"query": "vism", "top_page": "https://www.visme.co/", "clicks": 560, "impressions": 5324, "ctr": 0.10518407212622088, "position": 2.841980893039359}, {"query": "report maker", "top_page": "https://www.visme.co/report-maker/", "clicks": 559, "impressions": 3952, "ctr": 0.14144736842105263, "position": 11.793115853220948}, {"query": "banner maker", "top_page": "https://www.visme.co/banner-maker/", "clicks": 553, "impressions": 39465, "ctr": 0.014012416064867604, "position": 11.847988933906276}, {"query": "visme ai ebook generator", "top_page": "https://www.visme.co/ai-ebook-generator/", "clicks": 551, "impressions": 3385, "ctr": 0.16277695716395865, "position": 1.715958599055189}, {"query": "timeline creator", "top_page": "https://www.visme.co/timeline-maker/", "clicks": 548, "impressions": 13229, "ctr": 0.04142414392622269, "position": 11.65266611203898}, {"query": "lesson plan maker", "top_page": "https://www.visme.co/lesson-plan-maker/", "clicks": 546, "impressions": 20265, "ctr": 0.02694300518134715, "position": 6.360325684678016}, {"query": "ai image to image generator", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 544, "impressions": 1632, "ctr": 0.3333333333333333, "position": 30.280024509803926}, {"query": "free graph maker", "top_page": "https://www.visme.co/graph-maker/", "clicks": 531, "impressions": 5944, "ctr": 0.08933378196500673, "position": 10.71830980877647}, {"query": "make a graph", "top_page": "https://www.visme.co/graph-maker/", "clicks": 524, "impressions": 9529, "ctr": 0.054990030433413786, "position": 6.106923082682551}, {"query": "graphs", "top_page": "https://www.visme.co/graph-maker/", "clicks": 516, "impressions": 79978, "ctr": 0.0064517742379154265, "position": 7.248793418190003}, {"query": "ppt editor", "top_page": "https://www.visme.co/ppt-editor/", "clicks": 499, "impressions": 7236, "ctr": 0.0689607517965727, "position": 7.714632779489614}, {"query": "vismi", "top_page": "https://www.visme.co/", "clicks": 497, "impressions": 1210, "ctr": 0.41074380165289254, "position": 1.2690023969356292}, {"query": "graphique en ligne", "top_page": "https://www.visme.co/fr/graphiques/", "clicks": 494, "impressions": 4709, "ctr": 0.10490550010617966, "position": 6.452304580805096}, {"query": "offer letter", "top_page": "https://www.visme.co/templates/job-offer-letters/job-status-offer-letter-templates-1425289233/", "clicks": 491, "impressions": 125085, "ctr": 0.003925330775072951, "position": 1.4028747653240656}, {"query": "ai picture generator", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 471, "impressions": 2614, "ctr": 0.18018362662586074, "position": 46.469569452561856}, {"query": "graphmaker", "top_page": "https://www.visme.co/graph-maker/", "clicks": 465, "impressions": 2037, "ctr": 0.22827687776141384, "position": 2.538158555614812}, {"query": "\u0438\u0438 \u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u044f", "top_page": "https://www.visme.co/ru/ii-konstruktor-prezentacij/", "clicks": 464, "impressions": 6551, "ctr": 0.07082888108685696, "position": 6.493720386943933}, {"query": "graph maker free", "top_page": "https://www.visme.co/graph-maker/", "clicks": 463, "impressions": 4790, "ctr": 0.09665970772442589, "position": 7.742322710891396}, {"query": "document creator", "top_page": "https://www.visme.co/professional-document-creator/", "clicks": 463, "impressions": 7672, "ctr": 0.06034932221063608, "position": 5.859625521409584}, {"query": "ai portfolio maker", "top_page": "https://www.visme.co/ai-portfolio-generator/", "clicks": 451, "impressions": 3516, "ctr": 0.1282707622298066, "position": 10.757615880323163}, {"query": "online powerpoint", "top_page": "https://www.visme.co/ppt-editor/", "clicks": 451, "impressions": 32590, "ctr": 0.013838600797790734, "position": 7.209737449991409}, {"query": "powerpoint editor", "top_page": "https://www.visme.co/ppt-editor/", "clicks": 450, "impressions": 2799, "ctr": 0.1607717041800643, "position": 4.603450293584926}, {"query": "\u0440\u0435\u0434\u0430\u043a\u0442\u043e\u0440 \u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u0439 \u043e\u043d\u043b\u0430\u0439\u043d", "top_page": "https://www.visme.co/ru/powerpoint-online/", "clicks": 445, "impressions": 996, "ctr": 0.4467871485943775, "position": 2.754477796474214}, {"query": "infographics", "top_page": "https://www.visme.co/make-infographics/", "clicks": 443, "impressions": 146496, "ctr": 0.0030239733508082133, "position": 5.423032743234236}, {"query": "brochure maker ai", "top_page": "https://www.visme.co/ai-brochure-maker/", "clicks": 435, "impressions": 4281, "ctr": 0.10161177295024527, "position": 5.632084477154863}, {"query": "online ppt maker", "top_page": "https://www.visme.co/presentation-maker/", "clicks": 434, "impressions": 17971, "ctr": 0.024150019475822158, "position": 9.365080693465142}, {"query": "\u0432\u0438\u0437\u043c\u0438", "top_page": "https://www.visme.co/ru/", "clicks": 427, "impressions": 796, "ctr": 0.5364321608040201, "position": 1.021878150501152}, {"query": "create a timeline", "top_page": "https://www.visme.co/timeline-maker/", "clicks": 421, "impressions": 9658, "ctr": 0.04359080554980327, "position": 5.33562344212503}, {"query": "edit powerpoint online", "top_page": "https://www.visme.co/ppt-editor/", "clicks": 420, "impressions": 2067, "ctr": 0.20319303338171263, "position": 3.538978692217818}, {"query": "ai image to image", "top_page": "https://www.visme.co/ai-image-generator/", "clicks": 417, "impressions": 1219, "ctr": 0.3420836751435603, "position": 33.63740771123872}], "topOrganicPages": [{"page": "https://www.visme.co/", "clicks": 122498, "impressions": 4070252}, {"page": "https://www.visme.co/graph-maker/", "clicks": 104144, "impressions": 2622064}, {"page": "https://www.visme.co/es/", "clicks": 42957, "impressions": 443666}, {"page": "https://www.visme.co/ai-image-generator/", "clicks": 39639, "impressions": 504719}, {"page": "https://www.visme.co/ru/ii-konstruktor-prezentacij/", "clicks": 15619, "impressions": 264394}, {"page": "https://www.visme.co/ru/", "clicks": 15229, "impressions": 74221}, {"page": "https://www.visme.co/presentation-maker/", "clicks": 14443, "impressions": 1034134}, {"page": "https://www.visme.co/ppt-editor/", "clicks": 12779, "impressions": 564927}, {"page": "https://www.visme.co/timeline-maker/", "clicks": 12372, "impressions": 2196624}, {"page": "https://www.visme.co/fr/", "clicks": 12060, "impressions": 149023}, {"page": "https://www.visme.co/ru/powerpoint-online/", "clicks": 11868, "impressions": 217996}, {"page": "https://www.visme.co/ai-portfolio-generator/", "clicks": 11562, "impressions": 264629}, {"page": "https://www.visme.co/ru/sozdat-buklet/", "clicks": 11277, "impressions": 157415}, {"page": "https://www.visme.co/certificate-maker/", "clicks": 11071, "impressions": 307957}, {"page": "https://www.visme.co/ebook-creator/", "clicks": 11025, "impressions": 811222}, {"page": "https://www.visme.co/chart-maker/", "clicks": 11011, "impressions": 329120}, {"page": "https://www.visme.co/map-generator/", "clicks": 9619, "impressions": 215879}, {"page": "https://www.visme.co/ru/ii-konstruktora-bukletov/", "clicks": 9489, "impressions": 49400}, {"page": "https://www.visme.co/es/triptico/", "clicks": 9209, "impressions": 171704}, {"page": "https://www.visme.co/make-infographics/", "clicks": 9191, "impressions": 2672958}, {"page": "https://www.visme.co/ru/sozdat-infografika/", "clicks": 9178, "impressions": 144673}, {"page": "https://www.visme.co/ru/sozdat-kartu/", "clicks": 9114, "impressions": 93180}, {"page": "https://www.visme.co/ai-brochure-maker/", "clicks": 8947, "impressions": 226677}, {"page": "https://www.visme.co/ru/ii-generator-dokumentov/", "clicks": 8686, "impressions": 62999}, {"page": "https://www.visme.co/banner-maker/", "clicks": 8103, "impressions": 535567}, {"page": "https://www.visme.co/report-maker/", "clicks": 8053, "impressions": 162401}, {"page": "https://www.visme.co/ru/sozdat-prezentatsiya/", "clicks": 8038, "impressions": 239924}, {"page": "https://www.visme.co/thumbnail-maker/", "clicks": 7994, "impressions": 383885}, {"page": "https://www.visme.co/pt-br/", "clicks": 7896, "impressions": 368628}, {"page": "https://www.visme.co/professional-document-creator/", "clicks": 7743, "impressions": 217712}, {"page": "https://www.visme.co/ru/ii-generator-bannerov/", "clicks": 7538, "impressions": 101584}, {"page": "https://www.visme.co/ru/ii-generator-posterov/", "clicks": 7327, "impressions": 55067}, {"page": "https://www.visme.co/templates/presentations/", "clicks": 6356, "impressions": 596620}, {"page": "https://www.visme.co/pt-br/criar-ebook/", "clicks": 5983, "impressions": 264657}, {"page": "https://www.visme.co/templates/", "clicks": 5239, "impressions": 5832329}, {"page": "https://www.visme.co/visme-ai/", "clicks": 4842, "impressions": 2318851}, {"page": "https://www.visme.co/templates/ebooks/", "clicks": 4824, "impressions": 116472}, {"page": "https://www.visme.co/ai-presentation-maker/", "clicks": 4807, "impressions": 890988}, {"page": "https://www.visme.co/it/", "clicks": 4687, "impressions": 22442}, {"page": "https://www.visme.co/ru/ii-generatora-dizajn-proektov/", "clicks": 4684, "impressions": 52669}, {"page": "https://www.visme.co/ru/sozdat-raspisanie-online/", "clicks": 4667, "impressions": 43693}, {"page": "https://www.visme.co/fr/graphiques/", "clicks": 4642, "impressions": 98880}, {"page": "https://www.visme.co/es/infografias-creativas/", "clicks": 4604, "impressions": 963564}, {"page": "https://www.visme.co/ru/sozdat-etiketki-online/", "clicks": 4581, "impressions": 34095}, {"page": "https://www.visme.co/templates/id-cards/bank-id-card-1425283717/", "clicks": 4503, "impressions": 24173}, {"page": "https://www.visme.co/gift-card-maker/", "clicks": 4490, "impressions": 108735}, {"page": "https://www.visme.co/ar/schedule-maker/", "clicks": 4401, "impressions": 89980}, {"page": "https://www.visme.co/tr/", "clicks": 4395, "impressions": 29717}, {"page": "https://www.visme.co/templates/one-pagers/", "clicks": 4371, "impressions": 248949}, {"page": "https://www.visme.co/fr/createur-affiche-ia/", "clicks": 4284, "impressions": 116752}], "paidUrls": [{"url": "https://www.visme.co/plp-make-infographics/?vc=infographics", "clicks": 29379}, {"url": "https://www.visme.co/?vc=brand", "clicks": 29371}, {"url": "https://www.visme.co/templates/one-pagers/?vc=one-pager", "clicks": 14829}, {"url": "https://www.visme.co/es/presentaciones-creativas/?vc=presentationsES", "clicks": 11962}, {"url": "https://www.visme.co/plp-create-white-papers/?vc=max-whitepapers", "clicks": 10097}, {"url": "https://www.visme.co/make-infographics/?vc=ent", "clicks": 8449}, {"url": "https://www.visme.co/plp-create-white-papers/?vc=whitepapers-max", "clicks": 6896}, {"url": "http://visme.co?vc-retarget-signup", "clicks": 5654}, {"url": "https://www.visme.co/make-infographics/?vc=demand-gen-infographics", "clicks": 4313}, {"url": "https://www.visme.co/plp-make-infographics/?vc=infographic-template", "clicks": 3948}, {"url": "https://www.visme.co/plp-create-proposals/?vc=proposals", "clicks": 3733}, {"url": "https://visme.co/annual-report-maker?vc=reports", "clicks": 3546}, {"url": "https://www.visme.co/plp-create-ebooks/?vc=ebooks-plp", "clicks": 3359}, {"url": "https://www.visme.co/plp-presentation-software/?vc=presentations-plp", "clicks": 2375}, {"url": "https://www.visme.co/ai-presentation-maker/?vc=aipresentations", "clicks": 2123}, {"url": "https://www.visme.co/plp-presentations-online/?vc=presentations-plp", "clicks": 1709}, {"url": "https://www.visme.co/make-infographics/?vc=infographics_temp", "clicks": 1531}, {"url": "https://www.visme.co/executives-lp/?utm_source=google&utm_medium=cpc&utm_campaign=gd-Executives&?vc=ExecutivesCampaign-gd", "clicks": 1375}, {"url": "https://www.visme.co/plp-create-ebooks/?vc=max-ebooks-plp", "clicks": 1210}, {"url": "https://www.visme.co/templates/training-manuals/?vc=training-manuals", "clicks": 1153}, {"url": "https://www.visme.co/?vc=dem-all-in-one", "clicks": 1077}, {"url": "https://www.visme.co/plp-project-white-papers/?vc=project-white-papers", "clicks": 1063}, {"url": "http://www.visme.co/?utm_source=YoutubeBrandAdWizard&utm_medium=GoogleCPC", "clicks": 1043}, {"url": "https://www.visme.co/plp-project-white-papers/?vc=whitepapers-max", "clicks": 1027}, {"url": "https://www.visme.co/timeline-maker/?vc=graphmaker", "clicks": 972}, {"url": "https://www.visme.co/?utm_source=YoutubeBrandAdInformation&utm_medium=YouTube", "clicks": 783}, {"url": "https://www.visme.co/?vc=brand-pres", "clicks": 739}, {"url": "https://www.visme.co/online-whiteboard/?utm_source=YoutubeBrandAdInformation&utm_medium=YouTube", "clicks": 739}, {"url": "https://www.visme.co/?utm_source=YoutubeBrandAdInformationAI&utm_medium=YouTube", "clicks": 671}, {"url": "https://www.visme.co/plp-presentation-software/?vc=max-presentations-plp", "clicks": 670}, {"url": "https://visme.co/annual-report-maker?vc=max-reports", "clicks": 641}, {"url": "https://www.visme.co/?vc=brand-infograph", "clicks": 612}, {"url": "https://visme.co/blog/category/case-studies/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_case_3&vc=multi_steps_retargeting_case_3", "clicks": 609}, {"url": "https://www.visme.co/executives-lp/?utm_source=google&utm_medium=cpc&utm_campaign=Executives&?vc=ExecutivesCampaign", "clicks": 588}, {"url": "https://www.visme.co/ebook-creator/?vc=ebooks", "clicks": 586}, {"url": "https://www.visme.co/templates/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_templates_2&vc=multi_steps_retargeting_templates_2", "clicks": 580}, {"url": "https://www.visme.co/templates/proposals/sponsorship/?vc=sponsorship-decks", "clicks": 575}, {"url": "https://www.visme.co/plp-create-pitch-decks/?vc=pitchdecks-plp", "clicks": 559}, {"url": "https://www.visme.co/form-builder/email-forms/?vc=forms-email", "clicks": 555}, {"url": "https://www.visme.co/white-paper-design/?vc=ent", "clicks": 541}, {"url": "https://visme.co/blog/powerpoint-alternatives-2/?vc=switchers", "clicks": 529}, {"url": "https://www.visme.co/plp-presentation-software/?vc=presentation-software", "clicks": 507}, {"url": "https://www.visme.co/teams/plp-training-and-development/?utm_source=hs-sql-gPPC&utm_medium=ppc&utm_campaign=hs-sql-training-PPC&vc=hs-sql-training-PPC", "clicks": 503}, {"url": "https://www.visme.co/executives-lp/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_executives_2&vc=multi_steps_retargeting_executives_2", "clicks": 491}, {"url": "https://www.visme.co/templates/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_templates_1&vc=multi_steps_retargeting_templates_1", "clicks": 447}, {"url": "https://www.visme.co/ai-presentation-maker-online/?vc=presentations-ai", "clicks": 447}, {"url": "https://www.visme.co/presentation-software/?vc=switchers-p", "clicks": 415}, {"url": "https://www.visme.co/plp-make-infographics/?vc=infographics_new", "clicks": 394}, {"url": "https://www.visme.co/executives-lp/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_executives_1&vc=multi_steps_retargeting_executives_1", "clicks": 391}, {"url": "https://visme.co/blog/category/case-studies/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_case_2&vc=multi_steps_retargeting_case_2", "clicks": 383}], "ga4LandingPages": [{"page": "(not set)", "sessions": 5662017}, {"page": "/", "sessions": 4314823}, {"page": "/ai-presentation-maker", "sessions": 1289406}, {"page": "/graph-maker", "sessions": 679219}, {"page": "/presentation-maker", "sessions": 625588}, {"page": "/es", "sessions": 582343}, {"page": "/ai-poster-generator", "sessions": 388843}, {"page": "/blog/website-color-schemes", "sessions": 384509}, {"page": "/ru/sozdat-prezentatsiya", "sessions": 355459}, {"page": "/thumbnail-maker", "sessions": 341584}, {"page": "/ai-image-generator", "sessions": 323213}, {"page": "/ru/ii-konstruktor-prezentacij", "sessions": 305367}, {"page": "/ru/sozdat-buklet", "sessions": 261355}, {"page": "/es/triptico", "sessions": 258225}, {"page": "/ru/powerpoint-online", "sessions": 239380}, {"page": "/es/linea-de-tiempo", "sessions": 231034}, {"page": "/ai-design-generator", "sessions": 227856}, {"page": "/blog/ru/\u0446\u0438\u0442\u0430\u0442\u044b", "sessions": 222549}, {"page": "/blog/symbols-and-meanings", "sessions": 214005}, {"page": "/ru", "sessions": 207040}, {"page": "/blog/es/fuentes-elegantes", "sessions": 200240}, {"page": "/templates/presentations", "sessions": 197177}, {"page": "/wallpaper-maker", "sessions": 185968}, {"page": "/map-generator", "sessions": 183921}, {"page": "/chart-maker", "sessions": 183350}, {"page": "/powerpoint-online", "sessions": 180082}, {"page": "/make-infographics", "sessions": 171772}, {"page": "/ai-brochure-maker", "sessions": 167014}, {"page": "/timeline-maker", "sessions": 166802}, {"page": "/certificate-maker", "sessions": 161871}, {"page": "/banner-maker", "sessions": 160101}, {"page": "/ru/sozdat-infografika", "sessions": 157111}, {"page": "/ai-document-generator", "sessions": 152619}, {"page": "/es/generador-ia-presentaciones", "sessions": 150146}, {"page": "/blog/ru/\u0446\u0432\u0435\u0442\u043e\u0432\u0430\u044f-\u0441\u0445\u0435\u043c\u0430-\u0432\u0435\u0431-\u0441\u0430\u0439\u0442", "sessions": 144673}, {"page": "/blog/best-pitch-decks", "sessions": 142292}, {"page": "/blog/canva-alternatives", "sessions": 136821}, {"page": "/login", "sessions": 132191}, {"page": "/report-maker", "sessions": 130439}, {"page": "/blog/best-data-visualizations", "sessions": 130420}, {"page": "/ru/sozdat-kartu", "sessions": 129187}, {"page": "/pt-br", "sessions": 129003}, {"page": "/templates/infographics", "sessions": 123873}, {"page": "/blog/presentation-topic-ideas", "sessions": 122925}, {"page": "/es/invitaciones", "sessions": 117825}, {"page": "/blog/it/citazioni-per-momenti-difficili", "sessions": 115357}, {"page": "/blog/ru/kommercheskoe-predlozhenie-obrazec", "sessions": 114788}, {"page": "/pt-br/criar-ebook", "sessions": 113615}, {"page": "/templates", "sessions": 111039}, {"page": "/organizational-chart-maker", "sessions": 108067}], "organicUrlSet": ["https://www.visme.co/make-infographics/", "https://www.visme.co/templates/", "https://www.visme.co/gift-card-maker/", "https://www.visme.co/visme-ai/", "https://www.visme.co/ai-portfolio-generator/", "https://www.visme.co/map-generator/", "https://www.visme.co/ru/sozdat-raspisanie-online/", "https://www.visme.co/pt-br/", "https://www.visme.co/es/triptico/", "https://www.visme.co/pt-br/criar-ebook/", "https://www.visme.co/timeline-maker/", "https://www.visme.co/ru/sozdat-infografika/", "https://www.visme.co/ebook-creator/", "https://www.visme.co/fr/", "https://www.visme.co/templates/presentations/", "https://www.visme.co/ar/schedule-maker/", "https://www.visme.co/", "https://www.visme.co/templates/ebooks/", "https://www.visme.co/ai-brochure-maker/", "https://www.visme.co/ru/ii-generatora-dizajn-proektov/", "https://www.visme.co/templates/id-cards/bank-id-card-1425283717/", "https://www.visme.co/ai-image-generator/", "https://www.visme.co/ai-presentation-maker/", "https://www.visme.co/ppt-editor/", "https://www.visme.co/fr/createur-affiche-ia/", "https://www.visme.co/certificate-maker/", "https://www.visme.co/es/", "https://www.visme.co/ru/powerpoint-online/", "https://www.visme.co/chart-maker/", "https://www.visme.co/it/", "https://www.visme.co/fr/graphiques/", "https://www.visme.co/templates/one-pagers/", "https://www.visme.co/professional-document-creator/", "https://www.visme.co/ru/sozdat-buklet/", "https://www.visme.co/ru/ii-generator-posterov/", "https://www.visme.co/ru/ii-generator-bannerov/", "https://www.visme.co/ru/sozdat-etiketki-online/", "https://www.visme.co/tr/", "https://www.visme.co/report-maker/", "https://www.visme.co/graph-maker/", "https://www.visme.co/ru/ii-konstruktor-prezentacij/", "https://www.visme.co/presentation-maker/", "https://www.visme.co/banner-maker/", "https://www.visme.co/es/infografias-creativas/", "https://www.visme.co/ru/ii-konstruktora-bukletov/", "https://www.visme.co/ru/ii-generator-dokumentov/", "https://www.visme.co/thumbnail-maker/", "https://www.visme.co/ru/sozdat-kartu/", "https://www.visme.co/ru/sozdat-prezentatsiya/", "https://www.visme.co/ru/"], "paidUrlSet": ["https://www.visme.co/make-infographics/?vc=demand-gen-infographics", "https://visme.co/blog/category/case-studies/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_case_2&vc=multi_steps_retargeting_case_2", "https://www.visme.co/plp-create-white-papers/?vc=max-whitepapers", "https://www.visme.co/plp-make-infographics/?vc=infographics", "https://www.visme.co/templates/one-pagers/?vc=one-pager", "https://www.visme.co/plp-create-white-papers/?vc=whitepapers-max", "https://www.visme.co/make-infographics/?vc=ent", "https://www.visme.co/?utm_source=YoutubeBrandAdInformationAI&utm_medium=YouTube", "https://www.visme.co/executives-lp/?utm_source=google&utm_medium=cpc&utm_campaign=Executives&?vc=ExecutivesCampaign", "https://www.visme.co/es/presentaciones-creativas/?vc=presentationsES", "https://www.visme.co/timeline-maker/?vc=graphmaker", "https://www.visme.co/plp-presentation-software/?vc=presentations-plp", "https://www.visme.co/make-infographics/?vc=infographics_temp", "https://www.visme.co/?vc=brand", "https://www.visme.co/ebook-creator/?vc=ebooks", "https://www.visme.co/online-whiteboard/?utm_source=YoutubeBrandAdInformation&utm_medium=YouTube", "https://visme.co/annual-report-maker?vc=max-reports", "https://www.visme.co/presentation-software/?vc=switchers-p", "https://www.visme.co/plp-create-ebooks/?vc=ebooks-plp", "https://www.visme.co/plp-project-white-papers/?vc=whitepapers-max", "https://www.visme.co/templates/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_templates_2&vc=multi_steps_retargeting_templates_2", "https://www.visme.co/?vc=dem-all-in-one", "http://www.visme.co/?utm_source=YoutubeBrandAdWizard&utm_medium=GoogleCPC", "https://www.visme.co/plp-presentations-online/?vc=presentations-plp", "https://www.visme.co/plp-project-white-papers/?vc=project-white-papers", "https://www.visme.co/plp-make-infographics/?vc=infographic-template", "https://www.visme.co/form-builder/email-forms/?vc=forms-email", "https://www.visme.co/templates/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_templates_1&vc=multi_steps_retargeting_templates_1", "https://www.visme.co/?utm_source=YoutubeBrandAdInformation&utm_medium=YouTube", "https://visme.co/blog/powerpoint-alternatives-2/?vc=switchers", "http://visme.co?vc-retarget-signup", "https://www.visme.co/plp-presentation-software/?vc=max-presentations-plp", "https://www.visme.co/ai-presentation-maker-online/?vc=presentations-ai", "https://www.visme.co/executives-lp/?utm_source=google&utm_medium=cpc&utm_campaign=gd-Executives&?vc=ExecutivesCampaign-gd", "https://visme.co/annual-report-maker?vc=reports", "https://www.visme.co/templates/training-manuals/?vc=training-manuals", "https://www.visme.co/plp-create-ebooks/?vc=max-ebooks-plp", "https://www.visme.co/?vc=brand-infograph", "https://www.visme.co/executives-lp/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_executives_2&vc=multi_steps_retargeting_executives_2", "https://visme.co/blog/category/case-studies/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_case_3&vc=multi_steps_retargeting_case_3", "https://www.visme.co/executives-lp/?utm_source=google&utm_medium=paid&utm_campaign=retargeting_executives_1&vc=multi_steps_retargeting_executives_1", "https://www.visme.co/plp-create-pitch-decks/?vc=pitchdecks-plp", "https://www.visme.co/plp-make-infographics/?vc=infographics_new", "https://www.visme.co/templates/proposals/sponsorship/?vc=sponsorship-decks", "https://www.visme.co/teams/plp-training-and-development/?utm_source=hs-sql-gPPC&utm_medium=ppc&utm_campaign=hs-sql-training-PPC&vc=hs-sql-training-PPC", "https://www.visme.co/ai-presentation-maker/?vc=aipresentations", "https://www.visme.co/plp-presentation-software/?vc=presentation-software", "https://www.visme.co/plp-create-proposals/?vc=proposals", "https://www.visme.co/white-paper-design/?vc=ent", "https://www.visme.co/?vc=brand-pres"], "errors": {}, "dataAsOf": "2026-03-31 13:32"};
+const WEEKS_OPTIONS = [8, 13, 26, 52];
+let currentWeeks = 13;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmt = n => n == null ? '—' : n.toLocaleString();
+const fmtDollar = n => n == null ? '—' : '$' + n.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtPct = n => n == null ? '—' : (n*100).toFixed(1)+'%';
+const fmtPos = n => n == null || n === 0 ? '—' : n.toFixed(1);
+
+document.getElementById('data-as-of').textContent = 'Data as of ' + RAW.dataAsOf;
+
+// Sort weeks
+const allWeeks = RAW.weeklyRows.map(r => r.week).sort();
+const weekMap = {};
+RAW.weeklyRows.forEach(r => weekMap[r.week] = r);
+
+function getSlice(n) {
+  const end = allWeeks[allWeeks.length - 1];
+  const start = allWeeks[Math.max(0, allWeeks.length - n)];
+  return RAW.weeklyRows.filter(r => r.week >= start).slice(-n);
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+const COLORS = {
+  blue:   '#3b82f6',
+  orange: '#f97316',
+  green:  '#22c55e',
+  purple: '#a855f7',
+  red:    '#ef4444',
+  teal:   '#14b8a6',
+  blueA:  'rgba(59,130,246,0.15)',
+  orangeA:'rgba(249,115,22,0.15)',
+  greenA: 'rgba(34,197,94,0.15)',
+  purpleA:'rgba(168,85,247,0.15)',
+};
+
+let charts = {};
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function buildFunnelChart(slice) {
+  destroyChart('funnel');
+  const labels = slice.map(r => r.week);
+  const organic = slice.map(r => r.organicClicks);
+  const paid    = slice.map(r => r.paidClicks);
+  const sessions= slice.map(r => r.sessions);
+  const signups = slice.map(r => r.signups);
+  const purchases=slice.map(r => r.purchases);
+
+  const ctx = document.getElementById('funnelChart').getContext('2d');
+  charts['funnel'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Organic Clicks', data:organic,  borderColor:COLORS.blue,   backgroundColor:COLORS.blueA,   fill:true, tension:.3, pointRadius:2 },
+        { label:'Paid Clicks',    data:paid,     borderColor:COLORS.orange, backgroundColor:COLORS.orangeA, fill:true, tension:.3, pointRadius:2 },
+        { label:'Sessions',       data:sessions, borderColor:COLORS.teal,   backgroundColor:'rgba(20,184,166,.1)', fill:true, tension:.3, pointRadius:2 },
+        { label:'Signups',        data:signups,  borderColor:COLORS.green,  backgroundColor:COLORS.greenA,  fill:true, tension:.3, pointRadius:2 },
+        { label:'Purchases',      data:purchases,borderColor:COLORS.purple, backgroundColor:COLORS.purpleA, fill:true, tension:.3, pointRadius:2 },
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'top' } },
+               scales:{ y:{ beginAtZero:true } } }
+  });
+
+  // Conversion rate summary
+  const totOrg = organic.reduce((a,b)=>a+b,0);
+  const totPaid= paid.reduce((a,b)=>a+b,0);
+  const totSess= sessions.reduce((a,b)=>a+b,0);
+  const totSign= signups.reduce((a,b)=>a+b,0);
+  const totPurch=purchases.reduce((a,b)=>a+b,0);
+  const totalClicks = totOrg + totPaid;
+  document.getElementById('funnel-rates').innerHTML = `
+    <div class="stat-box"><div class="label">Total Clicks</div><div class="value">${fmt(totalClicks)}</div></div>
+    <div class="stat-box"><div class="label">Sessions</div><div class="value">${fmt(totSess)}</div><div class="delta">Click→Session: ${totalClicks?fmtPct(totSess/totalClicks):'—'}</div></div>
+    <div class="stat-box"><div class="label">Signups</div><div class="value">${fmt(totSign)}</div><div class="delta">Session→Signup: ${totSess?fmtPct(totSign/totSess):'—'}</div></div>
+    <div class="stat-box"><div class="label">Purchases</div><div class="value">${fmt(totPurch)}</div><div class="delta">Signup→Purchase: ${totSign?fmtPct(totPurch/totSign):'—'}</div></div>
+  `;
+}
+
+function buildMixChart(slice) {
+  destroyChart('mix');
+  const labels  = slice.map(r => r.week);
+  const organic = slice.map(r => r.organicClicks);
+  const paid    = slice.map(r => r.paidClicks);
+  const other   = slice.map(r => Math.max(0, r.sessions - r.organicClicks - r.paidClicks));
+
+  // Summary stats
+  const totOrg   = organic.reduce((a,b)=>a+b,0);
+  const totPaid  = paid.reduce((a,b)=>a+b,0);
+  const totOther = other.reduce((a,b)=>a+b,0);
+  const total    = totOrg + totPaid + totOther;
+  document.getElementById('mix-stats').innerHTML = `
+    <div class="stat-box"><div class="label">Organic</div><div class="value" style="color:var(--accent)">${total?Math.round(totOrg/total*100):0}%</div><div class="delta">${fmt(totOrg)} clicks</div></div>
+    <div class="stat-box"><div class="label">Paid</div><div class="value" style="color:var(--orange)">${total?Math.round(totPaid/total*100):0}%</div><div class="delta">${fmt(totPaid)} clicks</div></div>
+    <div class="stat-box"><div class="label">Other</div><div class="value" style="color:var(--muted)">${total?Math.round(totOther/total*100):0}%</div><div class="delta">${fmt(totOther)} sessions</div></div>
+  `;
+
+  const ctx = document.getElementById('mixChart').getContext('2d');
+  charts['mix'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Organic Clicks', data:organic,  backgroundColor:'rgba(59,130,246,.4)',  borderColor:COLORS.blue,   fill:true, tension:.3, pointRadius:2 },
+        { label:'Paid Clicks',    data:paid,     backgroundColor:'rgba(249,115,22,.4)',  borderColor:COLORS.orange, fill:true, tension:.3, pointRadius:2 },
+        { label:'Other (sessions)',data:other,   backgroundColor:'rgba(113,128,150,.2)', borderColor:'#718096',     fill:true, tension:.3, pointRadius:2 },
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+               plugins:{ legend:{ position:'top' } },
+               scales:{ x:{ stacked:false }, y:{ beginAtZero:true } } }
+  });
+}
+
+function buildOrgVsPaidChart(slice) {
+  destroyChart('orgVsPaid');
+  const labels  = slice.map(r => r.week);
+  const organic = slice.map(r => r.organicClicks);
+  const spend   = slice.map(r => r.paidSpend);
+
+  const ctx = document.getElementById('orgVsPaidChart').getContext('2d');
+  charts['orgVsPaid'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Paid Spend ($)', data:spend,   backgroundColor:'rgba(249,115,22,.6)', yAxisID:'y2', order:2 },
+        { label:'Organic Clicks', data:organic, borderColor:COLORS.blue, backgroundColor:'transparent', type:'line', tension:.3, pointRadius:2, yAxisID:'y1', order:1, borderWidth:2 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top' } },
+      scales:{
+        y1:{ type:'linear', position:'left',  beginAtZero:true, title:{ display:true, text:'Organic Clicks' } },
+        y2:{ type:'linear', position:'right', beginAtZero:true, grid:{ drawOnChartArea:false }, title:{ display:true, text:'Paid Spend ($)' } },
+      }
+    }
+  });
+}
+
+function buildCPAChart(slice) {
+  destroyChart('cpa');
+  const labels = slice.map(r => r.week);
+  const cpa    = slice.map(r => r.blendedCPA);
+
+  const validCPAs = cpa.filter(v => v != null && v > 0);
+  const avgCPA    = validCPAs.length ? validCPAs.reduce((a,b)=>a+b,0)/validCPAs.length : 0;
+
+  const ctx = document.getElementById('cpaChart').getContext('2d');
+  charts['cpa'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label:'Blended CPA ($)',
+          data:cpa.map(v => v === 0 ? null : v),
+          borderColor:COLORS.orange, backgroundColor:'rgba(249,115,22,.1)',
+          fill:true, tension:.3, pointRadius:3, spanGaps:true,
+        },
+        {
+          label:`Avg CPA (${avgCPA.toFixed(2)})`,
+          data:labels.map(()=>avgCPA||null),
+          borderColor:'#94a3b8', borderDash:[6,3], borderWidth:1.5,
+          pointRadius:0, fill:false,
+        },
+      ]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+               plugins:{ legend:{ position:'top' } },
+               scales:{ y:{ beginAtZero:true } } }
+  });
+}
+
+// ── Scorecard table ───────────────────────────────────────────────────────────
+function buildScorecard(slice) {
+  const tbody = document.getElementById('scorecard-body');
+  tbody.innerHTML = '';
+  for (let i = 0; i < slice.length; i++) {
+    const r   = slice[i];
+    const prev= i > 0 ? slice[i-1] : null;
+    const cl  = (field, higherIsBetter=true) => {
+      if (!prev) return '';
+      const cur = r[field], pre = prev[field];
+      if (cur == null || pre == null) return '';
+      if (cur > pre) return higherIsBetter ? 'up' : 'down';
+      if (cur < pre) return higherIsBetter ? 'down' : 'up';
+      return '';
+    };
+    const arrow = (field, higherIsBetter=true) => {
+      if (!prev) return '';
+      const cur = r[field], pre = prev[field];
+      if (cur == null || pre == null || pre === 0) return '';
+      const pct = ((cur - pre)/pre*100).toFixed(1);
+      if (cur > pre) return `<span class="${higherIsBetter?'green':'red'}"> ▲${pct}%</span>`;
+      if (cur < pre) return `<span class="${higherIsBetter?'red':'green'}"> ▼${Math.abs(pct)}%</span>`;
+      return '';
+    };
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${r.week}</strong></td>
+      <td class="${cl('organicClicks')}">${fmt(r.organicClicks)}${arrow('organicClicks')}</td>
+      <td class="${cl('paidClicks')}">${fmt(r.paidClicks)}${arrow('paidClicks')}</td>
+      <td class="${cl('sessions')}">${fmt(r.sessions)}${arrow('sessions')}</td>
+      <td class="${cl('paidSpend',false)}">${fmtDollar(r.paidSpend)}${arrow('paidSpend',false)}</td>
+      <td class="${cl('signups')}">${fmt(r.signups)}${arrow('signups')}</td>
+      <td class="${cl('purchases')}">${fmt(r.purchases)}${arrow('purchases')}</td>
+      <td class="${cl('blendedCPA',false)}">${r.blendedCPA?fmtDollar(r.blendedCPA):'—'}${arrow('blendedCPA',false)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// ── Budget vs Actual ──────────────────────────────────────────────────────────
+function buildBudgetTable(data, tbodyId) {
+  const tbody = document.getElementById(tbodyId);
+  tbody.innerHTML = '';
+  let ytdBudget = 0, ytdActual = 0;
+  const currentMonth = new Date().toISOString().slice(0,7);
+
+  data.forEach(r => {
+    const hasActual = r.actual != null;
+    const isGreen   = hasActual && r.variance != null && r.variance >= 0;
+    const isRed     = hasActual && r.variance != null && r.variance < 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${r.label}</strong></td>
+      <td>${r.budget != null ? fmt(r.budget) : '—'}</td>
+      <td>${hasActual ? fmt(r.actual) : '<span style="color:var(--muted)">Pending</span>'}</td>
+      <td>${r.variance != null ? `<span class="${isGreen?'cell-green':'cell-red'}">${r.variance>=0?'+':''}${fmt(r.variance)}</span>` : '—'}</td>
+      <td>${r.variancePct != null ? `<span class="${isGreen?'cell-green':'cell-red'}">${r.variancePct>=0?'+':''}${r.variancePct}%</span>` : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+    if (hasActual && r.budget != null && r.month <= currentMonth) {
+      ytdBudget += r.budget;
+      ytdActual += r.actual;
+    }
+  });
+
+  // YTD row
+  const ytdVar = ytdActual - ytdBudget;
+  const ytdPct = ytdBudget ? (ytdVar/ytdBudget*100).toFixed(1) : 0;
+  const tr = document.createElement('tr');
+  tr.className = 'ytd-row';
+  tr.innerHTML = `
+    <td>YTD Total</td>
+    <td>${fmt(ytdBudget)}</td>
+    <td>${fmt(ytdActual)}</td>
+    <td><span class="${ytdVar>=0?'cell-green':'cell-red'}">${ytdVar>=0?'+':''}${fmt(ytdVar)}</span></td>
+    <td><span class="${ytdVar>=0?'cell-green':'cell-red'}">${ytdVar>=0?'+':''}${ytdPct}%</span></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+// ── Queries table ─────────────────────────────────────────────────────────────
+let queryBrandFilter = 'all';
+let querySearch = '';
+
+function buildQueriesTable() {
+  const tbody = document.getElementById('queries-body');
+  tbody.innerHTML = '';
+  const q = querySearch.toLowerCase();
+  RAW.topQueries.forEach(r => {
+    const branded = r.query.toLowerCase().includes('visme');
+    if (queryBrandFilter === 'branded'    && !branded) return;
+    if (queryBrandFilter === 'nonbranded' &&  branded) return;
+    if (q && !r.query.toLowerCase().includes(q) && !r.top_page.toLowerCase().includes(q)) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${escHtml(r.query)}</strong>${branded?'<span class="badge-blue" style="margin-left:6px">branded</span>':''}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.top_page)}">${escHtml(r.top_page)}</td>
+      <td>${fmt(r.clicks)}</td>
+      <td>${fmt(r.impressions)}</td>
+      <td>${fmtPct(r.ctr)}</td>
+      <td>${fmtPos(r.position)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Landing pages cross-ref ───────────────────────────────────────────────────
+function buildLandingPages() {
+  const organicSet = new Set(RAW.organicUrlSet);
+  const paidSet    = new Set(RAW.paidUrlSet);
+
+  const fillTable = (tbodyId, rows, urlField, metricField, metricLabel) => {
+    const tbody = document.getElementById(tbodyId);
+    tbody.innerHTML = '';
+    rows.forEach(r => {
+      const url  = r[urlField] || '';
+      const over = organicSet.has(url) && paidSet.has(url);
+      const tr   = document.createElement('tr');
+      if (over) tr.className = 'overlap';
+      tr.innerHTML = `
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(url)}">${escHtml(url)}</td>
+        <td>${fmt(r[metricField])}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  };
+
+  fillTable('lp-organic-body', RAW.topOrganicPages, 'page', 'clicks', 'Clicks');
+  fillTable('lp-paid-body',    RAW.paidUrls,        'url',  'clicks', 'Clicks');
+  fillTable('lp-ga4-body',     RAW.ga4LandingPages, 'page', 'sessions', 'Sessions');
+}
+
+// ── Campaigns table ───────────────────────────────────────────────────────────
+function buildCampaigns() {
+  const tbody = document.getElementById('campaigns-body');
+  tbody.innerHTML = '';
+  RAW.campaigns.forEach(c => {
+    const ctr    = c.clicks && c.impressions ? (c.clicks/c.impressions*100).toFixed(2)+'%' : '—';
+    const cpa    = c.conversions > 0 ? fmtDollar(c.spend / c.conversions) : '—';
+    const cvRate = c.clicks > 0 ? (c.conversions/c.clicks*100).toFixed(2)+'%' : '—';
+    const statusBadge = c.status === 'ENABLED'
+      ? `<span class="badge-green">Enabled</span>`
+      : `<span class="badge-gray">${c.status}</span>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(c.name)}">${escHtml(c.name)}</td>
+      <td>${statusBadge}</td>
+      <td>${escHtml(c.type||'')}</td>
+      <td>${fmtDollar(c.spend)}</td>
+      <td>${fmt(c.clicks)}</td>
+      <td>${fmt(c.impressions)}</td>
+      <td>${ctr}</td>
+      <td>${c.conversions ? c.conversions.toFixed(1) : '0'}</td>
+      <td>${cpa}</td>
+      <td>${cvRate}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Keywords table ────────────────────────────────────────────────────────────
+let kwSearch = '';
+function buildKeywords() {
+  const tbody = document.getElementById('keywords-body');
+  tbody.innerHTML = '';
+  const q = kwSearch.toLowerCase();
+  RAW.keywords.forEach(kw => {
+    if (q && !kw.keyword.toLowerCase().includes(q) && !kw.campaign.toLowerCase().includes(q)) return;
+    const ctr = kw.clicks && kw.impressions ? (kw.clicks/kw.impressions*100).toFixed(2)+'%' : '—';
+    const cpa = kw.conversions > 0 ? fmtDollar(kw.spend / kw.conversions) : '—';
+    const matchBadge = {
+      'EXACT': '<span class="badge-blue">Exact</span>',
+      'PHRASE': '<span class="badge-gray">Phrase</span>',
+      'BROAD': '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:11px">Broad</span>',
+    }[kw.match_type] || kw.match_type;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${escHtml(kw.keyword)}</strong></td>
+      <td>${matchBadge}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(kw.campaign)}</td>
+      <td>${fmtDollar(kw.spend)}</td>
+      <td>${fmt(kw.clicks)}</td>
+      <td>${ctr}</td>
+      <td>${kw.conversions ? kw.conversions.toFixed(1) : '0'}</td>
+      <td>${cpa}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Sortable tables ───────────────────────────────────────────────────────────
+function makeSortable(tableId) {
+  const tbl = document.getElementById(tableId);
+  if (!tbl) return;
+  tbl.querySelectorAll('th').forEach((th, i) => {
+    th.dataset.col = i;
+    th.dataset.dir = '1';
+    th.addEventListener('click', () => {
+      const dir = parseInt(th.dataset.dir);
+      const rows = [...tbl.tBodies[0].rows];
+      rows.sort((a,b) => {
+        const av = a.cells[i].textContent.replace(/[$,%+▲▼,]/g,'').trim();
+        const bv = b.cells[i].textContent.replace(/[$,%+▲▼,]/g,'').trim();
+        const an = parseFloat(av), bn = parseFloat(bv);
+        if (!isNaN(an) && !isNaN(bn)) return dir * (an - bn);
+        return dir * av.localeCompare(bv);
+      });
+      rows.forEach(r => tbl.tBodies[0].appendChild(r));
+      th.dataset.dir = (-dir).toString();
+      tbl.querySelectorAll('th').forEach(t => t.textContent = t.textContent.replace(/[▲▼]/g,'').trim());
+      th.textContent += dir === 1 ? ' ▼' : ' ▲';
+    });
+  });
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function renderAll() {
+  const slice = getSlice(currentWeeks);
+  buildScorecard(slice);
+  buildFunnelChart(slice);
+  buildMixChart(slice);
+  buildOrgVsPaidChart(slice);
+  buildCPAChart(slice);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.week-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.week-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentWeeks = parseInt(btn.dataset.weeks);
+    renderAll();
+  });
+});
+
+// Budget tables (static — don't change with week slider)
+buildBudgetTable(RAW.budgetPPC,    'budget-ppc-body');
+buildBudgetTable(RAW.budgetNonPPC, 'budget-nonppc-body');
+buildLandingPages();
+buildCampaigns();
+buildKeywords();
+
+// Query filters
+document.querySelectorAll('[data-brand]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-brand]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    queryBrandFilter = btn.dataset.brand;
+    buildQueriesTable();
+  });
+});
+document.getElementById('query-search').addEventListener('input', e => {
+  querySearch = e.target.value;
+  buildQueriesTable();
+});
+document.getElementById('kw-search').addEventListener('input', e => {
+  kwSearch = e.target.value;
+  buildKeywords();
+});
+buildQueriesTable();
+
+// Sortable
+makeSortable('campaigns-tbl');
+makeSortable('keywords-tbl');
+makeSortable('queries-tbl');
+makeSortable('scorecard-tbl');
+
+// Sidebar active link on scroll
+const sections = document.querySelectorAll('section[id]');
+const navLinks  = document.querySelectorAll('#sidebar nav a');
+window.addEventListener('scroll', () => {
+  let cur = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 80) cur = s.id; });
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + cur);
+  });
+}, { passive:true });
+
+// Error notices
+if (RAW.errors && Object.keys(RAW.errors).length) {
+  const errs = Object.entries(RAW.errors).map(([k,v]) => `<b>${k}</b>: ${v.split('\n').slice(-1)[0]}`).join('<br>');
+  const div = document.createElement('div');
+  div.style.cssText = 'background:#fee2e2;border:1px solid #ef4444;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;';
+  div.innerHTML = '<strong>[WARN] Data fetch errors (partial data shown):</strong><br>' + errs;
+  document.getElementById('main').insertBefore(div, document.getElementById('main').children[1]);
+}
+
+renderAll();
+</script>
+</body>
+</html>
