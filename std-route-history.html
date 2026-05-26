@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Visme — /v2/payment/upgrade/std session history</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         margin: 0; padding: 32px; background: #f7f9fc; color: #1a202c; }
+  .container { max-width: 1280px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+  .card { background: white; border-radius: 8px; padding: 20px 24px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px; }
+  .card h2 { font-size: 16px; margin: 0 0 4px; }
+  .card .sub { font-size: 12px; color: #64748b; margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 380px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+  .stat { background: white; border-radius: 8px; padding: 16px 18px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .stat .label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+  .stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; }
+  .stat .delta { font-size: 12px; margin-top: 2px; }
+  .neg { color: #dc2626; } .pos { color: #16a34a; } .neut { color: #64748b; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px 10px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: #f1f5f9; font-weight: 600; }
+  tr:not(:last-child) td { border-bottom: 1px solid #e2e8f0; }
+  .highlight td { background: #fef2f2; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>/v2/payment/upgrade/std — daily session history</h1>
+  <div class="subtitle">Visme Starter checkout route · GA4 daily sessions · 2026-03-01 → 2026-05-25</div>
+
+  <div class="grid">
+    <div class="stat"><div class="label">Last working day</div>
+      <div class="value">Fri 5/15</div><div class="delta neut">110 sessions</div></div>
+    <div class="stat"><div class="label">Day route died</div>
+      <div class="value">Sat 5/16</div><div class="delta neg">6 sessions (−95% DoD)</div></div>
+    <div class="stat"><div class="label">Days at zero</div>
+      <div class="value">3</div><div class="delta neut">5/23, 5/24, 5/25</div></div>
+    <div class="stat"><div class="label">6-wk avg sessions/wk</div>
+      <div class="value">~163</div><div class="delta neg">Last wk: 20 (−88%)</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Daily sessions</h2>
+    <div class="sub">Bars in red = days at or near zero. Reference line marks Sat 5/16 (suspected deploy).</div>
+    <div class="chart-wrap"><canvas id="dailyChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2>Weekly aggregate (Mon–Sun)</h2>
+    <div class="sub">Highlighted row = post-collapse week.</div>
+    <table>
+      <thead><tr><th>Week start</th><th>Sessions</th><th>Page views</th><th>Notes</th></tr></thead>
+      <tbody id="weeklyTable"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Reading the chart</h2>
+    <ul style="font-size: 14px; line-height: 1.6; color: #334155;">
+      <li><b>Normal variance:</b> the page swings 0–45 sessions/day under normal operation. Lower-volume weeks (3/16, 4/20) didn't break the pattern — they just had less traffic.</li>
+      <li><b>The Thu 5/14 → Fri 5/15 spike (82 → 110 sessions)</b> is the biggest two-day burst in 12 weeks — likely a marketing push or promo driving Starter intent.</li>
+      <li><b>The cliff:</b> Fri 110 → Sat 6 → Sun 2, then a sustained stream of 0–7 sess/day. Multiple actual-zero days (5/23, 5/24) are unique to this period — they don't exist anywhere else in the history.</li>
+      <li><b>The trickle since</b> (1–7 sess/day) is consistent with cached pages, bookmarks, and old email links — not normal user flow through pricing CTAs.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const daily = [
+  ["2026-03-01",2],["2026-03-02",11],["2026-03-03",8],["2026-03-04",4],["2026-03-05",5],
+  ["2026-03-06",29],["2026-03-07",25],["2026-03-08",20],["2026-03-09",12],["2026-03-10",14],
+  ["2026-03-11",18],["2026-03-12",9],["2026-03-13",32],["2026-03-14",11],["2026-03-15",8],
+  ["2026-03-16",4],["2026-03-17",7],["2026-03-18",6],["2026-03-19",2],["2026-03-20",2],
+  ["2026-03-21",4],["2026-03-22",1],["2026-03-23",6],["2026-03-24",10],["2026-03-25",8],
+  ["2026-03-26",7],["2026-03-27",15],["2026-03-28",11],["2026-03-29",4],["2026-03-30",19],
+  ["2026-03-31",30],["2026-04-01",30],["2026-04-02",38],["2026-04-03",9],["2026-04-04",28],
+  ["2026-04-05",22],["2026-04-06",25],["2026-04-07",9],["2026-04-08",1],["2026-04-09",2],
+  ["2026-04-10",16],["2026-04-11",6],["2026-04-12",8],["2026-04-13",40],["2026-04-14",17],
+  ["2026-04-15",26],["2026-04-16",35],["2026-04-17",45],["2026-04-18",18],["2026-04-19",12],
+  ["2026-04-20",3],["2026-04-21",1],["2026-04-22",2],["2026-04-23",6],["2026-04-24",7],
+  ["2026-04-25",12],["2026-04-26",15],["2026-04-27",31],["2026-04-28",10],["2026-04-29",12],
+  ["2026-04-30",26],["2026-05-01",13],["2026-05-02",13],["2026-05-03",5],["2026-05-04",12],
+  ["2026-05-05",30],["2026-05-06",17],["2026-05-07",19],["2026-05-08",12],["2026-05-09",31],
+  ["2026-05-10",38],["2026-05-11",22],["2026-05-12",30],["2026-05-13",34],["2026-05-14",82],
+  ["2026-05-15",110],["2026-05-16",6],["2026-05-17",2],["2026-05-18",2],["2026-05-19",3],
+  ["2026-05-20",3],["2026-05-21",5],["2026-05-22",7],["2026-05-23",0],["2026-05-24",0],
+  ["2026-05-25",1]
+];
+
+const labels = daily.map(d => d[0]);
+const values = daily.map(d => d[1]);
+const cutoff = "2026-05-16";
+const colors = daily.map(d =>
+  d[0] >= cutoff
+    ? (d[1] === 0 ? "#dc2626" : "#f87171")
+    : (d[0] === "2026-05-14" || d[0] === "2026-05-15" ? "#16a34a" : "#3b82f6"));
+
+new Chart(document.getElementById("dailyChart"), {
+  type: "bar",
+  data: { labels, datasets: [{ label: "Sessions", data: values, backgroundColor: colors,
+                               borderWidth: 0, barPercentage: 0.9, categoryPercentage: 0.9 }] },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          title: (items) => {
+            const d = new Date(items[0].label);
+            return d.toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "short", day: "numeric" });
+          },
+          label: (item) => `Sessions: ${item.parsed.y}`
+        }
+      },
+      annotation: {} // placeholder
+    },
+    scales: {
+      x: { ticks: { maxTicksLimit: 14, autoSkip: true, font: { size: 10 } },
+           grid: { display: false } },
+      y: { beginAtZero: true, ticks: { font: { size: 11 } },
+           title: { display: true, text: "Sessions", font: { size: 11 } } }
+    }
+  }
+});
+
+// Weekly table
+const weekly = [
+  ["2026-03-02", 102, 115], ["2026-03-09", 104, 122], ["2026-03-16", 26, 29],
+  ["2026-03-23", 61, 75],   ["2026-03-30", 176, 187], ["2026-04-06", 67, 71],
+  ["2026-04-13", 193, 195], ["2026-04-20", 46, 46],   ["2026-04-27", 110, 120],
+  ["2026-05-04", 159, 162], ["2026-05-11", 286, 291],
+  ["2026-05-18", 20, 27],   ["2026-05-25", 1, 1]
+];
+const notes = {
+  "2026-03-16": "low traffic week",
+  "2026-04-20": "low traffic week",
+  "2026-05-11": "Thu+Fri spike (82+110 sess)",
+  "2026-05-18": "post-collapse",
+  "2026-05-25": "in progress"
+};
+const tbody = document.getElementById("weeklyTable");
+weekly.forEach(([w, s, pv]) => {
+  const tr = document.createElement("tr");
+  if (w === "2026-05-18") tr.className = "highlight";
+  tr.innerHTML = `<td>${w}</td><td>${s}</td><td>${pv}</td><td>${notes[w] || ""}</td>`;
+  tbody.appendChild(tr);
+});
+</script>
+</body>
+</html>
